@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -17,26 +17,12 @@ type handler struct {
 	logger      *log.Logger
 	lintRequest chan lsp.DocumentURI
 	files       map[lsp.DocumentURI]document
+	rootPath    string
 }
 
 type document struct {
-	Text    regoText
+	Text    string
 	Version int
-}
-
-type regoText struct {
-	statements []ast.Statement
-	comments   []*ast.Comment
-	err        ast.Errors
-}
-
-func NewRegoText(text string) regoText {
-	parser := ast.NewParser()
-	parser.WithReader(strings.NewReader(text))
-	statements, comments, err := parser.Parse()
-	return regoText{
-		statements, comments, err,
-	}
 }
 
 func NewHandler() jsonrpc2.Handler {
@@ -90,26 +76,70 @@ func (h *handler) lint(ctx context.Context, uri lsp.DocumentURI) (map[lsp.Docume
 	}
 
 	result := make(map[lsp.DocumentURI][]lsp.Diagnostic)
-	diagnostics := make([]lsp.Diagnostic, len(document.Text.err))
-	for i, e := range document.Text.err {
-		diagnostics[i] = lsp.Diagnostic{
-			Severity: lsp.Error,
-			Range: lsp.Range{
-				Start: lsp.Position{
-					Line:      e.Location.Row - 1,
-					Character: e.Location.Col - 1,
-				},
-				End: lsp.Position{
-					Line:      e.Location.Row - 1,
-					Character: e.Location.Col + e.Location.Offset - 1,
-				},
-			},
-			Message: e.Message,
+
+	module, err := ast.ParseModule(documentURIToURI(uri), document.Text)
+	if errs, ok := err.(ast.Errors); ok {
+		diagnostics := make([]lsp.Diagnostic, len(errs))
+		for i, e := range errs {
+			diagnostics[i] = convertErrorToDiagnostic(e)
+		}
+		result[uri] = diagnostics
+		return result, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to parse module: %w", err)
+	}
+
+	policies, err := loader.AllRegos([]string{h.rootPath})
+	if err != nil {
+		return nil, err
+	}
+
+	modules := policies.ParsedModules()
+	modules[documentURIToURI(uri)] = module
+	h.logger.Println(modules)
+	compiler := ast.NewCompiler()
+	compiler.Compile(modules)
+
+	if compiler.Failed() {
+		for _, e := range compiler.Errors {
+			uri := uriToDocumentURI(e.Location.File)
+			result[uri] = append(result[uri], convertErrorToDiagnostic(e))
 		}
 	}
-	result[uri] = diagnostics
+
+	// Refresh old diagnostics.
+	for uri := range h.files {
+		if _, ok := result[uri]; !ok {
+			result[uri] = make([]lsp.Diagnostic, 0)
+		}
+	}
 
 	return result, nil
+}
+
+func convertErrorToDiagnostic(err *ast.Error) lsp.Diagnostic {
+	return lsp.Diagnostic{
+		Severity: lsp.Error,
+		Range: lsp.Range{
+			Start: lsp.Position{
+				Line:      err.Location.Row - 1,
+				Character: err.Location.Col - 1,
+			},
+			End: lsp.Position{
+				Line:      err.Location.Row - 1,
+				Character: err.Location.Col + err.Location.Offset - 1,
+			},
+		},
+		Message: err.Message,
+	}
+}
+
+func uriToDocumentURI(uri string) lsp.DocumentURI {
+	return lsp.DocumentURI(fmt.Sprintf("file://%s", uri))
+}
+
+func documentURIToURI(duri lsp.DocumentURI) string {
+	return string(duri)[len("file://"):]
 }
 
 func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {

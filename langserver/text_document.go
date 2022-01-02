@@ -70,7 +70,7 @@ func (h *handler) handleTextDocumentDidSave(ctx context.Context, conn *jsonrpc2.
 
 func (h *handler) updateDocument(uri lsp.DocumentURI, text string, version int) {
 	h.files[uri] = document{
-		Text:    NewRegoText(text),
+		Text:    text,
 		Version: version,
 	}
 	h.lintRequest <- uri

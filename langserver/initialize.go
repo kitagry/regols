@@ -20,6 +20,8 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 		return nil, err
 	}
 
+	h.rootPath = params.RootPath
+
 	return lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{
 			TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
