@@ -2,10 +2,8 @@ package langserver
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/loader"
 	"github.com/sourcegraph/go-lsp"
 )
 
@@ -44,50 +42,23 @@ func (h *handler) diagnostic() {
 }
 
 func (h *handler) diagnose(ctx context.Context, uri lsp.DocumentURI) (map[lsp.DocumentURI][]lsp.Diagnostic, error) {
-	document, ok := h.files[uri]
-	if !ok {
-		return nil, fmt.Errorf("file not found: %s", uri)
-	}
-
 	result := make(map[lsp.DocumentURI][]lsp.Diagnostic)
 
-	module, err := ast.ParseModule(documentURIToURI(uri), document.Text)
-	if errs, ok := err.(ast.Errors); ok {
-		diagnostics := make([]lsp.Diagnostic, len(errs))
-		for i, e := range errs {
-			diagnostics[i] = convertErrorToDiagnostic(e)
-		}
-		result[uri] = diagnostics
-		return result, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to parse module: %w", err)
-	}
-
-	policies, err := loader.AllRegos([]string{h.rootPath})
-	if err != nil {
-		return nil, err
-	}
-
-	modules := policies.ParsedModules()
-	// Change module in order to use no saved file.
-	modules[documentURIToURI(uri)] = module
-
-	compiler := ast.NewCompiler()
-	compiler.Compile(modules)
-	if compiler.Failed() {
-		for _, e := range compiler.Errors {
-			uri := uriToDocumentURI(e.Location.File)
-			result[uri] = append(result[uri], convertErrorToDiagnostic(e))
-		}
+	errs := h.project.GetErrors(documentURIToURI(uri))
+	for _, e := range errs {
+		uri := uriToDocumentURI(e.Location.File)
+		result[uri] = append(result[uri], convertErrorToDiagnostic(e))
 	}
 
 	// Refresh old diagnostics.
-	for uri := range h.files {
+	for path := range h.project.GetFiles() {
+		uri := uriToDocumentURI(path)
 		if _, ok := result[uri]; !ok {
 			result[uri] = make([]lsp.Diagnostic, 0)
 		}
 	}
 
+	h.logger.Println(result)
 	return result, nil
 }
 

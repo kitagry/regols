@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/kitagry/rego-langserver/langserver/internal/cache"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -20,7 +21,11 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 		return nil, err
 	}
 
-	h.rootPath = params.RootPath
+	p, err := cache.NewProject(params.RootPath)
+	if err != nil {
+		return nil, err
+	}
+	h.project = p
 
 	return lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{

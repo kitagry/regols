@@ -6,16 +6,19 @@ import (
 	"log"
 	"os"
 
+	"github.com/kitagry/rego-langserver/langserver/internal/cache"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 type handler struct {
-	conn              *jsonrpc2.Conn
-	logger            *log.Logger
+	conn   *jsonrpc2.Conn
+	logger *log.Logger
+
 	diagnosticRequest chan lsp.DocumentURI
-	files             map[lsp.DocumentURI]document
 	rootPath          string
+
+	project *cache.Project
 }
 
 type document struct {
@@ -25,7 +28,6 @@ type document struct {
 
 func NewHandler() jsonrpc2.Handler {
 	handler := &handler{
-		files:             make(map[lsp.DocumentURI]document),
 		logger:            log.New(os.Stderr, "", log.LstdFlags),
 		diagnosticRequest: make(chan lsp.DocumentURI, 3),
 	}
@@ -49,6 +51,8 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		return h.handleTextDocumentDidSave(ctx, conn, req)
 	case "textDocument/formatting":
 		return h.handleTextDocumentFormatting(ctx, conn, req)
+	case "textDocument/definition":
+		return h.handleTextDocumentDefinition(ctx, conn, req)
 	}
 	return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound, Message: fmt.Sprintf("method not supported: %s", req.Method)}
 }

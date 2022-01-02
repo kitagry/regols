@@ -21,17 +21,17 @@ func (h *handler) handleTextDocumentFormatting(ctx context.Context, conn *jsonrp
 		return nil, err
 	}
 
-	document, ok := h.files[params.TextDocument.URI]
+	document, ok := h.project.GetFiles()[documentURIToURI(params.TextDocument.URI)]
 	if !ok {
 		return nil, fmt.Errorf("failed to find document %s", params.TextDocument.URI)
 	}
 
-	formatted, err := format.Source(documentURIToURI(params.TextDocument.URI), []byte(document.Text))
+	formatted, err := format.Source(documentURIToURI(params.TextDocument.URI), []byte(document.RowText))
 	if !ok {
 		return nil, fmt.Errorf("failed to format: %w", err)
 	}
 
-	return ComputeEdits(params.TextDocument.URI, document.Text, string(formatted)), nil
+	return ComputeEdits(params.TextDocument.URI, document.RowText, string(formatted)), nil
 }
 
 // ComputeEdits computes diff edits from 2 string inputs
