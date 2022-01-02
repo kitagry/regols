@@ -63,7 +63,7 @@ func (h *handler) handleTextDocumentDidSave(ctx context.Context, conn *jsonrpc2.
 		return nil, err
 	}
 
-	h.lintRequest <- params.TextDocument.URI
+	h.diagnosticRequest <- params.TextDocument.URI
 
 	return nil, nil
 }
@@ -73,5 +73,5 @@ func (h *handler) updateDocument(uri lsp.DocumentURI, text string, version int) 
 		Text:    text,
 		Version: version,
 	}
-	h.lintRequest <- uri
+	h.diagnosticRequest <- uri
 }
