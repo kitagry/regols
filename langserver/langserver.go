@@ -96,7 +96,6 @@ func (h *handler) lint(ctx context.Context, uri lsp.DocumentURI) (map[lsp.Docume
 
 	modules := policies.ParsedModules()
 	modules[documentURIToURI(uri)] = module
-	h.logger.Println(modules)
 	compiler := ast.NewCompiler()
 	compiler.Compile(modules)
 
