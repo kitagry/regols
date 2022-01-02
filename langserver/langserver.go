@@ -96,12 +96,12 @@ func (h *handler) lint(ctx context.Context, uri lsp.DocumentURI) (map[lsp.Docume
 			Severity: lsp.Error,
 			Range: lsp.Range{
 				Start: lsp.Position{
-					Line:      e.Location.Row,
-					Character: e.Location.Col,
+					Line:      e.Location.Row - 1,
+					Character: e.Location.Col - 1,
 				},
 				End: lsp.Position{
-					Line:      e.Location.Row,
-					Character: e.Location.Col + e.Location.Offset,
+					Line:      e.Location.Row - 1,
+					Character: e.Location.Col + e.Location.Offset - 1,
 				},
 			},
 			Message: e.Message,
