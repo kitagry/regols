@@ -27,6 +27,7 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 			TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
 				Kind: tdskToPTr(lsp.TDSKFull),
 			},
+			DocumentFormattingProvider: true,
 		},
 	}, nil
 }
