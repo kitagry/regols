@@ -30,7 +30,6 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 		return nil, nil
 	}
 	loc := toOPALocation(position, file.RowText)
-	h.logger.Println(loc)
 	lookupResults, err := h.project.LookupDefinition(path, loc)
 	if err != nil {
 		h.logger.Printf("failed to get definition: %v", err)
@@ -43,7 +42,7 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 		if err != nil {
 			continue
 		}
-		location := toLspLocation(r.Rule.Loc(), rawFile)
+		location := toLspLocation(r.Location, rawFile)
 		location.URI = uriToDocumentURI(r.Path)
 		result = append(result, location)
 	}

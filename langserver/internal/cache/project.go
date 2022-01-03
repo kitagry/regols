@@ -85,6 +85,6 @@ func (p *Project) GetModule(path string) *ast.Module {
 }
 
 type LookUpResult struct {
-	Rule *ast.Rule
-	Path string
+	Location *ast.Location
+	Path     string
 }

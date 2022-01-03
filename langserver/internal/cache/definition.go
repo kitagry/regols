@@ -21,24 +21,94 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, err
 	}
 
-	targetTerm, err := p.lookupRules(location, module.Rules, rawText)
+	targetTerm, rule, err := p.lookupRules(location, module.Rules, rawText)
 	if err != nil {
 		return nil, err
 	}
 	if targetTerm == nil {
 		return nil, nil
 	}
+
+	target := p.findInRule(targetTerm, rule)
+	if target != nil {
+		result := []LookUpResult{
+			{
+				Location: target.Loc(),
+				Path:     path,
+			},
+		}
+		return result, nil
+	}
 	return p.lookUpMethod(targetTerm, path), nil
 }
 
-func (p *Project) lookupRules(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, error) {
+func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
+	for _, b := range rule.Body {
+		switch t := b.Terms.(type) {
+		case *ast.Term:
+			result := p.findInTerm(term, t)
+			if result != nil {
+				return result
+			}
+		case []*ast.Term:
+			result := p.findInTerms(term, t)
+			if result != nil {
+				return result
+			}
+		default:
+			fmt.Fprintf(os.Stderr, "type: %T", b.Terms)
+		}
+	}
+	return nil
+}
+
+func (p *Project) findInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
+	for _, term := range terms {
+		t := p.findInTerm(target, term)
+		if t != nil {
+			return t
+		}
+	}
+	return nil
+}
+
+func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
+	switch v := term.Value.(type) {
+	case ast.Call:
+		return p.findInTerms(target, []*ast.Term(v))
+	case ast.Ref:
+		return p.findInTerms(target, []*ast.Term(v))
+	case *ast.Array:
+		for i := 0; i < v.Len(); i++ {
+			t := p.findInTerm(target, v.Elem(i))
+			if t == nil {
+				continue
+			}
+			return t
+		}
+		return nil
+	case ast.Var:
+		if target.Equal(term) && !target.Loc().Equal(term.Loc()) {
+			return term
+		}
+		return nil
+	case ast.String, ast.Boolean, ast.Number:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func (p *Project) lookupRules(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
 	for _, r := range rules {
 		if !in(location, r.Loc()) {
 			continue
 		}
-		return p.lookupRule(location, r, rawText)
+		term, err := p.lookupRule(location, r, rawText)
+		r := r
+		return term, r, err
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (p *Project) lookupRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
@@ -150,8 +220,8 @@ func (p *Project) lookUpMethod(term *ast.Term, path string) []LookUpResult {
 		if rule.Head.Name.String() == word {
 			r := rule
 			result = append(result, LookUpResult{
-				Rule: r,
-				Path: path,
+				Location: r.Loc(),
+				Path:     path,
 			})
 		}
 	}
@@ -187,7 +257,6 @@ func (p *Project) findImportPath(imp *ast.Import) string {
 }
 
 func in(target, src *location.Location) bool {
-	fmt.Fprintln(os.Stderr, target.Offset, src.Offset, src.Text)
 	return target.Offset >= src.Offset && target.Offset <= (src.Offset+len(src.Text))
 }
 
