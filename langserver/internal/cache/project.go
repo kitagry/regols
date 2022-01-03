@@ -8,10 +8,10 @@ import (
 )
 
 type Project struct {
-	rootPath string
-	files    map[string]File
-	modules  map[string]*ast.Module
-	errs     map[string]ast.Errors
+	rootPath  string
+	openFiles map[string]File
+	modules   map[string]*ast.Module
+	errs      map[string]ast.Errors
 }
 
 type File struct {
@@ -28,15 +28,15 @@ func NewProject(rootPath string) (*Project, error) {
 	modules := regoResult.ParsedModules()
 
 	return &Project{
-		rootPath: rootPath,
-		modules:  modules,
-		files:    make(map[string]File),
-		errs:     make(map[string]ast.Errors),
+		rootPath:  rootPath,
+		modules:   modules,
+		openFiles: make(map[string]File),
+		errs:      make(map[string]ast.Errors),
 	}, nil
 }
 
 func (p *Project) UpdateFile(path string, text string, version int) error {
-	p.files[path] = File{
+	p.openFiles[path] = File{
 		RowText: text,
 		Version: version,
 	}
@@ -66,11 +66,25 @@ func (p *Project) GetErrors(path string) ast.Errors {
 	return compiler.Errors
 }
 
-func (p *Project) GetFiles() map[string]File {
-	return p.files
+func (p *Project) GetFile(path string) (File, bool) {
+	f, ok := p.openFiles[path]
+	return f, ok
+}
+
+func (p *Project) GetOpenFiles() map[string]File {
+	return p.openFiles
 }
 
 func (p *Project) DeleteFile(path string) {
-	delete(p.files, path)
+	delete(p.openFiles, path)
 	delete(p.errs, path)
+}
+
+func (p *Project) GetModule(path string) *ast.Module {
+	return p.modules[path]
+}
+
+type LookUpResult struct {
+	Location *ast.Location
+	Path     string
 }

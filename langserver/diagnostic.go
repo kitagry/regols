@@ -51,14 +51,13 @@ func (h *handler) diagnose(ctx context.Context, uri lsp.DocumentURI) (map[lsp.Do
 	}
 
 	// Refresh old diagnostics.
-	for path := range h.project.GetFiles() {
+	for path := range h.project.GetOpenFiles() {
 		uri := uriToDocumentURI(path)
 		if _, ok := result[uri]; !ok {
 			result[uri] = make([]lsp.Diagnostic, 0)
 		}
 	}
 
-	h.logger.Println(result)
 	return result, nil
 }
 
