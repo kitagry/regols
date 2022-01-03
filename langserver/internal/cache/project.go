@@ -2,7 +2,6 @@ package cache
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -88,69 +87,4 @@ func (p *Project) GetModule(path string) *ast.Module {
 type LookUpResult struct {
 	Rule *ast.Rule
 	Path string
-}
-
-func (p *Project) LookUp(term *ast.Term, path string) []LookUpResult {
-	return p.lookUpMethod(term, path)
-}
-
-func (p *Project) lookUpMethod(term *ast.Term, path string) []LookUpResult {
-	word := term.String()
-	var mod *ast.Module
-	if strings.Contains(word, ".") {
-		importedModule := word[:strings.Index(word, ".")]
-		module := p.GetModule(path)
-		imp := findImportModule(importedModule, module.Imports)
-		importPath := p.findImportPath(imp)
-
-		mod = p.GetModule(importPath)
-		word = word[strings.LastIndex(word, ".")+1:]
-		path = importPath
-	} else {
-		mod = p.GetModule(path)
-	}
-
-	if mod == nil {
-		return nil
-	}
-
-	result := make([]LookUpResult, 0)
-	for _, rule := range mod.Rules {
-		if rule.Head.Name.String() == word {
-			r := rule
-			result = append(result, LookUpResult{
-				Rule: r,
-				Path: path,
-			})
-		}
-	}
-	return result
-}
-
-func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
-	for _, imp := range imports {
-		m := imp.Path.Value.String()
-		if strings.HasSuffix(m, moduleName) {
-			imp := imp
-			return imp
-		}
-	}
-	return nil
-}
-
-func (p *Project) findImportPath(imp *ast.Import) string {
-	if imp == nil {
-		return ""
-	}
-	impPath := strings.ReplaceAll(imp.Path.Value.String(), ".", "/")
-	if strings.HasPrefix(impPath, "data/") {
-		impPath = impPath[5:]
-	}
-	impPath += ".rego"
-	for path := range p.modules {
-		if strings.HasSuffix(path, impPath) {
-			return path
-		}
-	}
-	return ""
 }
