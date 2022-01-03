@@ -1,4 +1,4 @@
-module github.com/kitagry/rego-langserver
+module github.com/kitagry/regols
 
 go 1.17
 
