@@ -85,7 +85,17 @@ func (p *Project) GetModule(path string) *ast.Module {
 	return p.modules[path]
 }
 
-func (p *Project) LookupMethod(word, path string) ([]*ast.Rule, string) {
+type LookUpResult struct {
+	Rule *ast.Rule
+	Path string
+}
+
+func (p *Project) LookUp(term *ast.Term, path string) []LookUpResult {
+	return p.lookUpMethod(term, path)
+}
+
+func (p *Project) lookUpMethod(term *ast.Term, path string) []LookUpResult {
+	word := term.String()
 	var mod *ast.Module
 	if strings.Contains(word, ".") {
 		importedModule := word[:strings.Index(word, ".")]
@@ -101,16 +111,20 @@ func (p *Project) LookupMethod(word, path string) ([]*ast.Rule, string) {
 	}
 
 	if mod == nil {
-		return nil, path
+		return nil
 	}
 
-	result := make([]*ast.Rule, 0)
+	result := make([]LookUpResult, 0)
 	for _, rule := range mod.Rules {
 		if rule.Head.Name.String() == word {
-			result = append(result, rule)
+			r := rule
+			result = append(result, LookUpResult{
+				Rule: r,
+				Path: path,
+			})
 		}
 	}
-	return result, path
+	return result
 }
 
 func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {

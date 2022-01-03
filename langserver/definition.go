@@ -40,22 +40,20 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 	}
 
 	word := h.lookupRules(position, module.Rules, rawFile)
-	h.logger.Println(word)
 	if word == nil {
 		return nil, nil
 	}
-	rules, path := h.project.LookupMethod(word.String(), documentURIToURI(uri))
+	lookupResults := h.project.LookUp(word, documentURIToURI(uri))
 
-	rawFile, err = h.getFile(path)
-	if err != nil {
-		return nil, nil
-	}
-
-	result := make([]lsp.Location, len(rules))
-	for i, r := range rules {
-		location := getLocation(r.Loc(), rawFile)
-		location.URI = uriToDocumentURI(path)
-		result[i] = location
+	result := make([]lsp.Location, 0, len(lookupResults))
+	for _, r := range lookupResults {
+		rawFile, err := h.getFile(r.Path)
+		if err != nil {
+			continue
+		}
+		location := getLocation(r.Rule.Loc(), rawFile)
+		location.URI = uriToDocumentURI(r.Path)
+		result = append(result, location)
 	}
 
 	return result, nil
@@ -65,7 +63,6 @@ func (h *handler) lookupRules(position lsp.Position, rules []*ast.Rule, rawText 
 	for _, r := range rules {
 		location := r.Loc()
 		loc := getLocation(location, rawText)
-		h.logger.Println(rawText)
 		if !in(position, loc) {
 			continue
 		}
@@ -82,7 +79,6 @@ func (h *handler) lookupRule(position lsp.Position, rule *ast.Rule, rawText stri
 			continue
 		}
 
-		h.logger.Println(b)
 		switch t := b.Terms.(type) {
 		case *ast.Term:
 			return h.lookupTerm(position, t, rawText)
@@ -94,7 +90,6 @@ func (h *handler) lookupRule(position lsp.Position, rule *ast.Rule, rawText stri
 }
 
 func (h *handler) lookupTerm(position lsp.Position, term *ast.Term, rawText string) *ast.Term {
-	h.logger.Printf("%T: %v", term.Value, term)
 	switch v := term.Value.(type) {
 	case ast.Call:
 		return h.lookupTerms(position, []*ast.Term(v), rawText)
