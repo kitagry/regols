@@ -43,36 +43,3 @@ func TestIn(t *testing.T) {
 		})
 	}
 }
-
-func TestGetWord(t *testing.T) {
-	tests := map[string]struct {
-		input  string
-		index  int
-		expect string
-	}{
-		"getWord from first": {
-			input:  "hoge(fuga)",
-			index:  0,
-			expect: "hoge",
-		},
-		"getWord from second": {
-			input:  "hoge(fuga)",
-			index:  5,
-			expect: "fuga",
-		},
-		". is in word": {
-			input:  "test.hoge(fuga)",
-			index:  0,
-			expect: "test.hoge",
-		},
-	}
-
-	for n, tt := range tests {
-		t.Run(n, func(t *testing.T) {
-			got := getWord(tt.input, tt.index)
-			if got != tt.expect {
-				t.Errorf(`getWord expect="%s", got="%s"`, tt.expect, got)
-			}
-		})
-	}
-}

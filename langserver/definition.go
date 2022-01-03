@@ -1,10 +1,11 @@
 package langserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp/syntax"
+	"os"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -27,29 +28,32 @@ func (h *handler) handleTextDocumentDefinition(ctx context.Context, conn *jsonrp
 }
 
 func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position lsp.Position) ([]lsp.Location, error) {
-	module := h.project.GetModule(documentURIToURI(uri))
+	path := documentURIToURI(uri)
+	module := h.project.GetModule(path)
 	if module == nil {
 		return nil, fmt.Errorf("failed to get file: %s", uri)
 	}
 
-	rule := h.lookupRules(position, module.Rules, module.String())
-	if rule == nil {
-		return nil, fmt.Errorf("failed to get rule")
+	rawFile, err := h.getFile(path)
+	if err != nil {
+		return nil, nil
 	}
-	word := h.lookupBody(position, rule.Body, module.String())
+
+	word := h.lookupRules(position, module.Rules, rawFile)
+	h.logger.Println(word)
 	if word == nil {
 		return nil, nil
 	}
 	rules, path := h.project.LookupMethod(word.String(), documentURIToURI(uri))
 
-	module = h.project.GetModule(path)
-	if module == nil {
-		return nil, fmt.Errorf("failed to get file: %s", path)
+	rawFile, err = h.getFile(path)
+	if err != nil {
+		return nil, nil
 	}
 
 	result := make([]lsp.Location, len(rules))
 	for i, r := range rules {
-		location := getLocation(r.Loc(), module.String())
+		location := getLocation(r.Loc(), rawFile)
 		location.URI = uriToDocumentURI(path)
 		result[i] = location
 	}
@@ -57,26 +61,28 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 	return result, nil
 }
 
-func (h *handler) lookupRules(position lsp.Position, rules []*ast.Rule, rawText string) *ast.Rule {
+func (h *handler) lookupRules(position lsp.Position, rules []*ast.Rule, rawText string) *ast.Term {
 	for _, r := range rules {
 		location := r.Loc()
 		loc := getLocation(location, rawText)
-		if in(position, loc) {
-			r := r
-			return r
+		h.logger.Println(rawText)
+		if !in(position, loc) {
+			continue
 		}
+		return h.lookupRule(position, r, rawText)
 	}
 	return nil
 }
 
-func (h *handler) lookupBody(position lsp.Position, body ast.Body, rawText string) *ast.Term {
-	for _, b := range body {
+func (h *handler) lookupRule(position lsp.Position, rule *ast.Rule, rawText string) *ast.Term {
+	for _, b := range rule.Body {
 		loc := b.Loc()
 		location := getLocation(loc, rawText)
 		if !in(position, location) {
 			continue
 		}
 
+		h.logger.Println(b)
 		switch t := b.Terms.(type) {
 		case *ast.Term:
 			return h.lookupTerm(position, t, rawText)
@@ -158,6 +164,22 @@ func (h *handler) lookupTerms(position lsp.Position, terms []*ast.Term, rawText 
 	return nil
 }
 
+func (h *handler) getFile(path string) (string, error) {
+	if f, ok := h.project.GetFile(path); ok {
+		return f.RowText, nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	var buf bytes.Buffer
+	buf.ReadFrom(f)
+	return buf.String(), nil
+}
+
 func in(position lsp.Position, location lsp.Location) bool {
 	startCond := location.Range.Start.Line < position.Line || (location.Range.Start.Line == position.Line && location.Range.Start.Character <= position.Character)
 	endCond := position.Line < location.Range.End.Line || (position.Line == location.Range.End.Line && position.Character <= location.Range.End.Character)
@@ -173,7 +195,7 @@ func getLocation(location *location.Location, rawText string) lsp.Location {
 		Character: location.Col - 1,
 	}
 
-	endOffset := location.Offset + len(location.Text)
+	endOffset := location.Offset + len(location.Text) - 1
 	toEndText := rawText[:endOffset]
 	line := strings.Count(toEndText, "\n")
 	newLineInd := strings.LastIndex(toEndText, "\n")
@@ -188,17 +210,4 @@ func getLocation(location *location.Location, rawText string) lsp.Location {
 			},
 		},
 	}
-}
-
-func getWord(s string, ind int) string {
-	startInd := 0
-	for i, st := range s {
-		if !(syntax.IsWordChar(st) || st == rune('.')) {
-			if ind < i {
-				return s[startInd:i]
-			}
-			startInd = i + 1
-		}
-	}
-	return ""
 }
