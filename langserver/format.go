@@ -21,7 +21,7 @@ func (h *handler) handleTextDocumentFormatting(ctx context.Context, conn *jsonrp
 		return nil, err
 	}
 
-	document, ok := h.project.GetFiles()[documentURIToURI(params.TextDocument.URI)]
+	document, ok := h.project.GetOpenFiles()[documentURIToURI(params.TextDocument.URI)]
 	if !ok {
 		return nil, fmt.Errorf("failed to find document %s", params.TextDocument.URI)
 	}

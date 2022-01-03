@@ -33,6 +33,7 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 				Kind: tdskToPTr(lsp.TDSKFull),
 			},
 			DocumentFormattingProvider: true,
+			DefinitionProvider:         true,
 		},
 	}, nil
 }

@@ -2,16 +2,17 @@ package cache
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
 )
 
 type Project struct {
-	rootPath string
-	files    map[string]File
-	modules  map[string]*ast.Module
-	errs     map[string]ast.Errors
+	rootPath  string
+	openFiles map[string]File
+	modules   map[string]*ast.Module
+	errs      map[string]ast.Errors
 }
 
 type File struct {
@@ -28,15 +29,15 @@ func NewProject(rootPath string) (*Project, error) {
 	modules := regoResult.ParsedModules()
 
 	return &Project{
-		rootPath: rootPath,
-		modules:  modules,
-		files:    make(map[string]File),
-		errs:     make(map[string]ast.Errors),
+		rootPath:  rootPath,
+		modules:   modules,
+		openFiles: make(map[string]File),
+		errs:      make(map[string]ast.Errors),
 	}, nil
 }
 
 func (p *Project) UpdateFile(path string, text string, version int) error {
-	p.files[path] = File{
+	p.openFiles[path] = File{
 		RowText: text,
 		Version: version,
 	}
@@ -66,11 +67,76 @@ func (p *Project) GetErrors(path string) ast.Errors {
 	return compiler.Errors
 }
 
-func (p *Project) GetFiles() map[string]File {
-	return p.files
+func (p *Project) GetFile(path string) (File, bool) {
+	f, ok := p.openFiles[path]
+	return f, ok
+}
+
+func (p *Project) GetOpenFiles() map[string]File {
+	return p.openFiles
 }
 
 func (p *Project) DeleteFile(path string) {
-	delete(p.files, path)
+	delete(p.openFiles, path)
 	delete(p.errs, path)
+}
+
+func (p *Project) GetModule(path string) *ast.Module {
+	return p.modules[path]
+}
+
+func (p *Project) LookupMethod(word, path string) ([]*ast.Rule, string) {
+	var mod *ast.Module
+	if strings.Contains(word, ".") {
+		importedModule := word[:strings.Index(word, ".")]
+		module := p.GetModule(path)
+		imp := findImportModule(importedModule, module.Imports)
+		importPath := p.findImportPath(imp)
+
+		mod = p.GetModule(importPath)
+		word = word[strings.LastIndex(word, ".")+1:]
+		path = importPath
+	} else {
+		mod = p.GetModule(path)
+	}
+
+	if mod == nil {
+		return nil, path
+	}
+
+	result := make([]*ast.Rule, 0)
+	for _, rule := range mod.Rules {
+		if rule.Head.Name.String() == word {
+			result = append(result, rule)
+		}
+	}
+	return result, path
+}
+
+func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
+	for _, imp := range imports {
+		m := imp.Path.Value.String()
+		if strings.HasSuffix(m, moduleName) {
+			imp := imp
+			return imp
+		}
+	}
+	return nil
+}
+
+func (p *Project) findImportPath(imp *ast.Import) string {
+	if imp == nil {
+		return ""
+	}
+	impPath := strings.ReplaceAll(imp.Path.Value.String(), ".", "/")
+	if strings.HasPrefix(impPath, "data/") {
+		impPath = impPath[5:]
+	}
+	impPath += ".rego"
+	for path := range p.modules {
+		if strings.HasSuffix(path, impPath) {
+			return path
+		}
+	}
+	return ""
 }
