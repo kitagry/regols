@@ -46,6 +46,7 @@ func (p *Project) getModules() (map[string]*ast.Module, error) {
 		p.errs = regoErrs
 		return nil, fmt.Errorf("failed to load rego file: %v", regoErrs)
 	}
+	p.modules = modules
 	return modules, nil
 }
 
