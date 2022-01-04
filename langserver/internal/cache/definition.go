@@ -248,7 +248,11 @@ func (p *Project) findImportPath(imp *ast.Import) string {
 		impPath = impPath[5:]
 	}
 	impPath += ".rego"
-	for path := range p.modules {
+	modules, err := p.getModules()
+	if err != nil {
+		return ""
+	}
+	for path := range modules {
 		if strings.HasSuffix(path, impPath) {
 			return path
 		}
