@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -20,19 +21,62 @@ type File struct {
 }
 
 func NewProject(rootPath string) (*Project, error) {
-	regoResult, err := loader.AllRegos([]string{rootPath})
+	modules, regoErrs, err := loadRegoFiles(rootPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load rego files: %w", err)
+		return nil, err
 	}
-
-	modules := regoResult.ParsedModules()
 
 	return &Project{
 		rootPath:  rootPath,
 		modules:   modules,
 		openFiles: make(map[string]File),
-		errs:      make(map[string]ast.Errors),
+		errs:      regoErrs,
 	}, nil
+}
+
+func (p *Project) getModules() (map[string]*ast.Module, error) {
+	if p.modules != nil {
+		return p.modules, nil
+	}
+	modules, regoErrs, err := loadRegoFiles(p.rootPath)
+	if err != nil {
+		return nil, err
+	}
+	if regoErrs != nil {
+		p.errs = regoErrs
+		return nil, fmt.Errorf("failed to load rego file: %v", regoErrs)
+	}
+	p.modules = modules
+	return modules, nil
+}
+
+func loadRegoFiles(rootPath string) (map[string]*ast.Module, map[string]ast.Errors, error) {
+	regoResult, err := loader.AllRegos([]string{rootPath})
+	if errs, ok := err.(loader.Errors); ok {
+		regoErrs := make(map[string]ast.Errors)
+		for _, err := range errs {
+			if i := strings.LastIndex(err.Error(), ":"); i != -1 {
+				path := err.Error()[:i]
+				regoErrs[path] = ast.Errors{
+					{
+						Message: err.Error(),
+						Location: &ast.Location{
+							File:   path,
+							Row:    1,
+							Col:    1,
+							Offset: 0,
+						},
+					},
+				}
+			}
+		}
+		return make(map[string]*ast.Module), regoErrs, nil
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("failed to load rego files: %w", err)
+	}
+
+	modules := regoResult.ParsedModules()
+	return modules, nil, nil
 }
 
 func (p *Project) UpdateFile(path string, text string, version int) error {
@@ -47,6 +91,7 @@ func (p *Project) UpdateFile(path string, text string, version int) error {
 	} else if err != nil {
 		return err
 	}
+
 	p.modules[path] = module
 	delete(p.errs, path)
 	return nil
