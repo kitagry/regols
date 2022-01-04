@@ -39,7 +39,7 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		}
 		return result, nil
 	}
-	return p.lookUpMethod(targetTerm, path), nil
+	return p.findMethod(targetTerm, path), nil
 }
 
 func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
@@ -195,34 +195,39 @@ func (p *Project) lookupTerm(loc *location.Location, term *ast.Term, rawText str
 	}
 }
 
-func (p *Project) lookUpMethod(term *ast.Term, path string) []LookUpResult {
+func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
 	word := term.String()
-	var mod *ast.Module
-	if strings.Contains(word, ".") {
-		importedModule := word[:strings.Index(word, ".")]
-		module := p.GetModule(path)
-		imp := findImportModule(importedModule, module.Imports)
-		importPath := p.findImportPath(imp)
+	module := p.GetModule(path)
+	searchModules := make(map[string]*ast.Module)
 
-		mod = p.GetModule(importPath)
-		word = word[strings.LastIndex(word, ".")+1:]
-		path = importPath
+	searchModuleName := ""
+	if strings.Contains(word, ".") /* imported method */ {
+		moduleName := word[:strings.Index(word, ".")]
+		imp := findImportModule(moduleName, module.Imports)
+
+		word = word[strings.Index(word, ".")+1:]
+		searchModuleName = imp.Path.String()
 	} else {
-		mod = p.GetModule(path)
+		searchModuleName = module.Package.Path.String()
+		searchModules[path] = module
 	}
 
-	if mod == nil {
+	searchModules = p.findModuleFiles(searchModuleName)
+
+	if len(searchModules) == 0 {
 		return nil
 	}
 
 	result := make([]LookUpResult, 0)
-	for _, rule := range mod.Rules {
-		if rule.Head.Name.String() == word {
-			r := rule
-			result = append(result, LookUpResult{
-				Location: r.Loc(),
-				Path:     path,
-			})
+	for path, mod := range searchModules {
+		for _, rule := range mod.Rules {
+			if rule.Head.Name.String() == word {
+				r := rule
+				result = append(result, LookUpResult{
+					Location: r.Loc(),
+					Path:     path,
+				})
+			}
 		}
 	}
 	return result
@@ -230,7 +235,12 @@ func (p *Project) lookUpMethod(term *ast.Term, path string) []LookUpResult {
 
 func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
 	for _, imp := range imports {
-		m := imp.Path.Value.String()
+		alias := imp.Alias.String()
+		if alias != "" && moduleName == alias {
+			imp := imp
+			return imp
+		}
+		m := imp.String()[strings.LastIndex(imp.String(), "."):]
 		if strings.HasSuffix(m, moduleName) {
 			imp := imp
 			return imp
@@ -239,25 +249,18 @@ func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
 	return nil
 }
 
-func (p *Project) findImportPath(imp *ast.Import) string {
-	if imp == nil {
-		return ""
-	}
-	impPath := strings.ReplaceAll(imp.Path.Value.String(), ".", "/")
-	if strings.HasPrefix(impPath, "data/") {
-		impPath = impPath[5:]
-	}
-	impPath += ".rego"
+func (p *Project) findModuleFiles(moduleName string) map[string]*ast.Module {
 	modules, err := p.getModules()
 	if err != nil {
-		return ""
+		return nil
 	}
-	for path := range modules {
-		if strings.HasSuffix(path, impPath) {
-			return path
+	result := make(map[string]*ast.Module)
+	for path, module := range modules {
+		if module.Package.Path.String() == moduleName {
+			result[path] = module
 		}
 	}
-	return ""
+	return result
 }
 
 func in(target, src *location.Location) bool {
