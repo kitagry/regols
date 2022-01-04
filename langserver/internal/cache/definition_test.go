@@ -51,6 +51,28 @@ func TestLookupDefinition(t *testing.T) {
 				},
 			},
 		},
+		"in file definition in args": {
+			path: testDataPath + "/src.rego",
+			location: &location.Location{
+				Row: 9,
+				Col: 2,
+				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	m"),
+				Text: []byte("m"),
+				File: testDataPath + "/src.rego",
+			},
+			expectResult: []cache.LookUpResult{
+				{
+					Location: &ast.Location{
+						Row:    5,
+						Col:    11,
+						Offset: len("package main\n\nimport data.library\n\nviolation[m"),
+						Text:   []byte("msg"),
+						File:   testDataPath + "/src.rego",
+					},
+					Path: testDataPath + "/src.rego",
+				},
+			},
+		},
 		"same library but other definition": {
 			path: testDataPath + "/src.rego",
 			location: &location.Location{

@@ -43,6 +43,22 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 }
 
 func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
+	// violation[msg]
+	//           ^ this is key
+	if rule.Head.Key != nil {
+		result := p.findInTerm(term, rule.Head.Key)
+		if result != nil {
+			return result
+		}
+	}
+
+	// func(hello)
+	//      ^ this is arg
+	result := p.findInTerms(term, rule.Head.Args)
+	if result != nil {
+		return result
+	}
+
 	for _, b := range rule.Body {
 		switch t := b.Terms.(type) {
 		case *ast.Term:
