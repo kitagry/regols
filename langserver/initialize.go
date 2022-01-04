@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/kitagry/rego-langserver/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/cache"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )

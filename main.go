@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/kitagry/rego-langserver/langserver"
+	"github.com/kitagry/regols/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
