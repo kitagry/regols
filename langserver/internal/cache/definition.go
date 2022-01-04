@@ -214,7 +214,6 @@ func (p *Project) lookupTerm(loc *location.Location, term *ast.Term, rawText str
 func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
 	word := term.String()
 	module := p.GetModule(path)
-	searchModules := make(map[string]*ast.Module)
 
 	searchModuleName := ""
 	if strings.Contains(word, ".") /* imported method */ {
@@ -225,10 +224,9 @@ func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
 		searchModuleName = imp.Path.String()
 	} else {
 		searchModuleName = module.Package.Path.String()
-		searchModules[path] = module
 	}
 
-	searchModules = p.findModuleFiles(searchModuleName)
+	searchModules := p.findModuleFiles(searchModuleName)
 
 	if len(searchModules) == 0 {
 		return nil
