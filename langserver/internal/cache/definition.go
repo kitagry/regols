@@ -101,6 +101,9 @@ func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
 	case ast.Call:
 		return p.findInTerms(target, []*ast.Term(v))
 	case ast.Ref:
+		// import data.a
+		// a.b[c] -> a: ast.Var, b: ast.String, c: ast.Var
+		// a.b.c  -> a: ast.Var, b: ast.String, c: ast.String
 		return p.findInTerms(target, []*ast.Term(v)[1:])
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
