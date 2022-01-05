@@ -129,14 +129,14 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term,
 }
 
 func (p *Project) findDefinition(term *ast.Term, path string, rule *ast.Rule) []*ast.Location {
-	target := p.findInRule(term, rule)
+	target := p.findDefinitionInRule(term, rule)
 	if target != nil {
 		return []*ast.Location{target.Loc()}
 	}
-	return p.findMethod(term, path)
+	return p.findDefinitionInModule(term, path)
 }
 
-func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
+func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 	if t, ok := term.Value.(ast.Ref); ok && len(t) > 1 {
 		term = t[0]
 	}
@@ -144,7 +144,7 @@ func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 	// violation[msg]
 	//           ^ this is key
 	if rule.Head.Key != nil {
-		result := p.findInTerm(term, rule.Head.Key)
+		result := p.findDefinitionInTerm(term, rule.Head.Key)
 		if result != nil {
 			return result
 		}
@@ -152,7 +152,7 @@ func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 
 	// func(hello)
 	//      ^ this is arg
-	result := p.findInTerms(term, rule.Head.Args)
+	result := p.findDefinitionInTerms(term, rule.Head.Args)
 	if result != nil {
 		return result
 	}
@@ -160,7 +160,7 @@ func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 	for _, b := range rule.Body {
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			result := p.findInTerm(term, t)
+			result := p.findDefinitionInTerm(term, t)
 			if result != nil {
 				return result
 			}
@@ -168,7 +168,7 @@ func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 			// equality -> [hoge, fuga] = split_hoge()
 			// assign -> hoge := fuga()
 			if ast.Equality.Ref().Equal(b.Operator()) || ast.Assign.Ref().Equal(b.Operator()) {
-				result := p.findInTerm(term, t[1])
+				result := p.findDefinitionInTerm(term, t[1])
 				if result != nil {
 					return result
 				}
@@ -180,9 +180,9 @@ func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 	return nil
 }
 
-func (p *Project) findInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
+func (p *Project) findDefinitionInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
 	for _, term := range terms {
-		t := p.findInTerm(target, term)
+		t := p.findDefinitionInTerm(target, term)
 		if t != nil {
 			return t
 		}
@@ -190,18 +190,18 @@ func (p *Project) findInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
 	return nil
 }
 
-func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
+func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Term {
 	switch v := term.Value.(type) {
 	case ast.Call:
-		return p.findInTerms(target, []*ast.Term(v))
+		return p.findDefinitionInTerms(target, []*ast.Term(v))
 	case ast.Ref:
 		// import data.a
 		// a.b[c] -> a: ast.Var, b: ast.String, c: ast.Var
 		// a.b.c  -> a: ast.Var, b: ast.String, c: ast.String
-		return p.findInTerms(target, []*ast.Term(v)[1:])
+		return p.findDefinitionInTerms(target, []*ast.Term(v)[1:])
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			t := p.findInTerm(target, v.Elem(i))
+			t := p.findDefinitionInTerm(target, v.Elem(i))
 			if t == nil {
 				continue
 			}
@@ -220,28 +220,35 @@ func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
 	}
 }
 
-func (p *Project) findMethod(term *ast.Term, path string) []*ast.Location {
+func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
 	word := term.String()
 	module := p.GetModule(path)
 
-	searchModuleName := ""
+	var searchPackageName ast.Ref
 	if strings.Contains(word, ".") /* imported method */ {
 		moduleName := word[:strings.Index(word, ".")]
-		imp := findImportModule(moduleName, module.Imports)
+		imp := findImportOutsidePolicy(moduleName, module.Imports)
+		if imp == nil {
+			return nil
+		}
 		word = word[strings.Index(word, ".")+1:]
-		searchModuleName = imp.Path.String()
+		var ok bool
+		searchPackageName, ok = imp.Path.Value.(ast.Ref)
+		if !ok {
+			return nil
+		}
 	} else {
-		searchModuleName = module.Package.Path.String()
+		searchPackageName = module.Package.Path
 	}
 
-	searchModules := p.findModuleFiles(searchModuleName)
+	searchPolicies := p.findPolicies(searchPackageName)
 
-	if len(searchModules) == 0 {
+	if len(searchPolicies) == 0 {
 		return nil
 	}
 
 	result := make([]*ast.Location, 0)
-	for _, mod := range searchModules {
+	for _, mod := range searchPolicies {
 		for _, rule := range mod.Rules {
 			if rule.Head.Name.String() == word {
 				r := rule
@@ -252,7 +259,7 @@ func (p *Project) findMethod(term *ast.Term, path string) []*ast.Location {
 	return result
 }
 
-func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
+func findImportOutsidePolicy(moduleName string, imports []*ast.Import) *ast.Import {
 	for _, imp := range imports {
 		alias := imp.Alias.String()
 		if alias != "" && moduleName == alias {
@@ -268,15 +275,15 @@ func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
 	return nil
 }
 
-func (p *Project) findModuleFiles(moduleName string) map[string]*ast.Module {
+func (p *Project) findPolicies(packageName ast.Ref) []*ast.Module {
 	modules, err := p.getModules()
 	if err != nil {
 		return nil
 	}
-	result := make(map[string]*ast.Module)
-	for path, module := range modules {
-		if module.Package.Path.String() == moduleName {
-			result[path] = module
+	result := make([]*ast.Module, 0)
+	for _, module := range modules {
+		if module.Package.Path.Equal(packageName) {
+			result = append(result, module)
 		}
 	}
 	return result
