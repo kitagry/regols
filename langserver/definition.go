@@ -38,12 +38,12 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 
 	result := make([]lsp.Location, 0, len(lookupResults))
 	for _, r := range lookupResults {
-		rawFile, err := h.project.GetRawText(r.Path)
+		rawFile, err := h.project.GetRawText(r.File)
 		if err != nil {
 			continue
 		}
-		location := toLspLocation(r.Location, rawFile)
-		location.URI = uriToDocumentURI(r.Path)
+		location := toLspLocation(r, rawFile)
+		location.URI = uriToDocumentURI(r.File)
 		result = append(result, location)
 	}
 

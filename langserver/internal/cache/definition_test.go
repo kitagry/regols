@@ -26,7 +26,7 @@ func TestLookupDefinition(t *testing.T) {
 	tests := map[string]struct {
 		path         string
 		location     *location.Location
-		expectResult []cache.LookUpResult
+		expectResult []*ast.Location
 		expectErr    error
 	}{
 		"in file definition": {
@@ -38,16 +38,13 @@ func TestLookupDefinition(t *testing.T) {
 				Text: []byte("m"),
 				File: testDataPath + "/src.rego",
 			},
-			expectResult: []cache.LookUpResult{
+			expectResult: []*ast.Location{
 				{
-					Location: &ast.Location{
-						Row: 6,
-						Col: 2,
-						Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m"),
-						Text: []byte("m"),
-						File: testDataPath + "/src.rego",
-					},
-					Path: testDataPath + "/src.rego",
+					Row: 6,
+					Col: 2,
+					Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m"),
+					Text: []byte("m"),
+					File: testDataPath + "/src.rego",
 				},
 			},
 		},
@@ -60,16 +57,13 @@ func TestLookupDefinition(t *testing.T) {
 				Text: []byte("m"),
 				File: testDataPath + "/src.rego",
 			},
-			expectResult: []cache.LookUpResult{
+			expectResult: []*ast.Location{
 				{
-					Location: &ast.Location{
-						Row:    5,
-						Col:    11,
-						Offset: len("package main\n\nimport data.library\n\nviolation[m"),
-						Text:   []byte("msg"),
-						File:   testDataPath + "/src.rego",
-					},
-					Path: testDataPath + "/src.rego",
+					Row:    5,
+					Col:    11,
+					Offset: len("package main\n\nimport data.library\n\nviolation[m"),
+					Text:   []byte("msg"),
+					File:   testDataPath + "/src.rego",
 				},
 			},
 		},
@@ -82,16 +76,13 @@ func TestLookupDefinition(t *testing.T) {
 				Text: []byte("e"),
 				File: testDataPath + "/src.rego",
 			},
-			expectResult: []cache.LookUpResult{
+			expectResult: []*ast.Location{
 				{
-					Location: &ast.Location{
-						Row:    3,
-						Col:    1,
-						Offset: len("package main\n\no"),
-						Text: []byte("other_method(msg) {\n	msg == \"hello\"\n}"),
-						File: testDataPath + "/src2.rego",
-					},
-					Path: testDataPath + "/src2.rego",
+					Row:    3,
+					Col:    1,
+					Offset: len("package main\n\no"),
+					Text: []byte("other_method(msg) {\n	msg == \"hello\"\n}"),
+					File: testDataPath + "/src2.rego",
 				},
 			},
 		},
@@ -104,16 +95,13 @@ func TestLookupDefinition(t *testing.T) {
 				Text: []byte("h"),
 				File: testDataPath + "/src.rego",
 			},
-			expectResult: []cache.LookUpResult{
+			expectResult: []*ast.Location{
 				{
-					Location: &ast.Location{
-						Row:    3,
-						Col:    1,
-						Offset: len("package library\n\nh"),
-						Text: []byte("hello(msg) {\n	msg == \"hello\"\n}"),
-						File: testDataPath + "/lib/library.rego",
-					},
-					Path: testDataPath + "/lib/library.rego",
+					Row:    3,
+					Col:    1,
+					Offset: len("package library\n\nh"),
+					Text: []byte("hello(msg) {\n	msg == \"hello\"\n}"),
+					File: testDataPath + "/lib/library.rego",
 				},
 			},
 		},
@@ -126,8 +114,46 @@ func TestLookupDefinition(t *testing.T) {
 				Text: []byte("m"),
 				File: testDataPath + "/src.rego",
 			},
-			expectResult: []cache.LookUpResult{},
+			expectResult: []*ast.Location{},
 			expectErr:    nil,
+		},
+		"with not library but has dot": {
+			path: testDataPath + "/src.rego",
+			location: &location.Location{
+				Row: 14,
+				Col: 11,
+				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[container]\n	container.n}"),
+				Text: []byte("n"),
+				File: testDataPath + "/src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row: 13,
+					Col: 21,
+					Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[c"),
+					Text: []byte("container"),
+					File: testDataPath + "/src.rego",
+				},
+			},
+		},
+		"With two library method can jump": {
+			path: testDataPath + "/src.rego",
+			location: &location.Location{
+				Row: 14,
+				Col: 11,
+				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[container]\n	container.name\n	msg = \"hello\"\n}\n\nviolation[msg] {\n	library.containers[container]\n	library.h"),
+				Text: []byte("h"),
+				File: testDataPath + "/src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package library\n\nh"),
+					Text: []byte("hello(msg) {\n	msg == \"hello\"\n}"),
+					File: testDataPath + "/lib/library.rego",
+				},
+			},
 		},
 	}
 
@@ -138,8 +164,8 @@ func TestLookupDefinition(t *testing.T) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
 			}
 
-			if diff := cmp.Diff(got, tt.expectResult); diff != "" {
-				t.Errorf("LookupDefinition result diff:\n%s", diff)
+			if diff := cmp.Diff(tt.expectResult, got); diff != "" {
+				t.Errorf("LookupDefinition result diff (-expect +got):\n%s", diff)
 			}
 		})
 	}

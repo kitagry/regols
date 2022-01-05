@@ -72,11 +72,11 @@ func loadRegoFiles(rootPath string) (map[string]*ast.Module, map[string]ast.Erro
 		}
 		return make(map[string]*ast.Module), regoErrs, nil
 	} else if err != nil {
-		return nil, nil, fmt.Errorf("failed to load rego files: %w", err)
+		return nil, make(map[string]ast.Errors), fmt.Errorf("failed to load rego files: %w", err)
 	}
 
 	modules := regoResult.ParsedModules()
-	return modules, nil, nil
+	return modules, make(map[string]ast.Errors), nil
 }
 
 func (p *Project) UpdateFile(path string, text string, version int) error {
@@ -131,5 +131,4 @@ func (p *Project) GetModule(path string) *ast.Module {
 
 type LookUpResult struct {
 	Location *ast.Location
-	Path     string
 }

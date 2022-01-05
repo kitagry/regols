@@ -8,3 +8,15 @@ violation[msg] {
 	library.hello(m)
 	msg = m
 }
+
+violation[msg] {
+	library.containers[container]
+	container.name
+	msg = "hello"
+}
+
+violation[msg] {
+	library.containers[container]
+	library.hello("hello")
+	msg = "hello"
+}

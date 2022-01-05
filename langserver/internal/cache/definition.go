@@ -10,7 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
-func (p *Project) LookupDefinition(path string, location *location.Location) ([]LookUpResult, error) {
+func (p *Project) LookupDefinition(path string, location *location.Location) ([]*ast.Location, error) {
 	module := p.GetModule(path)
 	if module == nil {
 		return nil, fmt.Errorf("cannot find module: %s", path)
@@ -21,7 +21,7 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, err
 	}
 
-	targetTerm, rule, err := p.lookupRules(location, module.Rules, rawText)
+	targetTerm, rule, err := p.searchTargetTerm(location, module.Rules, rawText)
 	if err != nil {
 		return nil, err
 	}
@@ -29,105 +29,22 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, nil
 	}
 
-	target := p.findInRule(targetTerm, rule)
-	if target != nil {
-		result := []LookUpResult{
-			{
-				Location: target.Loc(),
-				Path:     path,
-			},
-		}
-		return result, nil
-	}
-	return p.findMethod(targetTerm, path), nil
+	return p.findDefinition(targetTerm, path, rule), nil
 }
 
-func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
-	// violation[msg]
-	//           ^ this is key
-	if rule.Head.Key != nil {
-		result := p.findInTerm(term, rule.Head.Key)
-		if result != nil {
-			return result
-		}
-	}
-
-	// func(hello)
-	//      ^ this is arg
-	result := p.findInTerms(term, rule.Head.Args)
-	if result != nil {
-		return result
-	}
-
-	for _, b := range rule.Body {
-		switch t := b.Terms.(type) {
-		case *ast.Term:
-			result := p.findInTerm(term, t)
-			if result != nil {
-				return result
-			}
-		case []*ast.Term:
-			result := p.findInTerms(term, t)
-			if result != nil {
-				return result
-			}
-		default:
-			fmt.Fprintf(os.Stderr, "type: %T", b.Terms)
-		}
-	}
-	return nil
-}
-
-func (p *Project) findInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
-	for _, term := range terms {
-		t := p.findInTerm(target, term)
-		if t != nil {
-			return t
-		}
-	}
-	return nil
-}
-
-func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
-	switch v := term.Value.(type) {
-	case ast.Call:
-		return p.findInTerms(target, []*ast.Term(v))
-	case ast.Ref:
-		return p.findInTerms(target, []*ast.Term(v))
-	case *ast.Array:
-		for i := 0; i < v.Len(); i++ {
-			t := p.findInTerm(target, v.Elem(i))
-			if t == nil {
-				continue
-			}
-			return t
-		}
-		return nil
-	case ast.Var:
-		if target.Equal(term) && target.Loc().Offset > term.Loc().Offset {
-			return term
-		}
-		return nil
-	case ast.String, ast.Boolean, ast.Number:
-		return nil
-	default:
-		return nil
-	}
-}
-
-func (p *Project) lookupRules(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
+func (p *Project) searchTargetTerm(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
 	for _, r := range rules {
 		if !in(location, r.Loc()) {
 			continue
 		}
-		term, err := p.lookupRule(location, r, rawText)
+		term, err := p.searchTargetTermInRule(location, r, rawText)
 		r := r
 		return term, r, err
 	}
 	return nil, nil, nil
 }
 
-func (p *Project) lookupRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
 	for _, b := range rule.Body {
 		if !in(location, b.Loc()) {
 			continue
@@ -135,30 +52,30 @@ func (p *Project) lookupRule(location *location.Location, rule *ast.Rule, rawTex
 
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			return p.lookupTerm(location, t, rawText)
+			return p.searchTargetTermInTerm(location, t, rawText)
 		case []*ast.Term:
-			return p.lookupTerms(location, t, rawText)
+			return p.searchTargetTermInTerms(location, t, rawText)
 		}
 	}
 	return nil, nil
 }
 
-func (p *Project) lookupTerms(location *location.Location, terms []*ast.Term, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term, rawText string) (*ast.Term, error) {
 	for _, t := range terms {
 		if in(location, t.Loc()) {
-			return p.lookupTerm(location, t, rawText)
+			return p.searchTargetTermInTerm(location, t, rawText)
 		}
 	}
 	return nil, nil
 }
 
-func (p *Project) lookupTerm(loc *location.Location, term *ast.Term, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term, rawText string) (*ast.Term, error) {
 	switch v := term.Value.(type) {
 	case ast.Call:
-		return p.lookupTerms(loc, []*ast.Term(v), rawText)
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
 	case ast.Ref:
 		if len(v) == 1 {
-			return p.lookupTerm(loc, v[0], rawText)
+			return p.searchTargetTermInTerm(loc, v[0], rawText)
 		}
 		if len(v) >= 2 {
 			// This is for imported method
@@ -187,10 +104,10 @@ func (p *Project) lookupTerm(loc *location.Location, term *ast.Term, rawText str
 				}}, nil
 			}
 		}
-		return p.lookupTerms(loc, []*ast.Term(v), rawText)
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			t, err := p.lookupTerm(loc, v.Elem(i), rawText)
+			t, err := p.searchTargetTermInTerm(loc, v.Elem(i), rawText)
 			if err != nil {
 				return nil, err
 			}
@@ -211,43 +128,138 @@ func (p *Project) lookupTerm(loc *location.Location, term *ast.Term, rawText str
 	}
 }
 
-func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
+func (p *Project) findDefinition(term *ast.Term, path string, rule *ast.Rule) []*ast.Location {
+	target := p.findDefinitionInRule(term, rule)
+	if target != nil {
+		return []*ast.Location{target.Loc()}
+	}
+	return p.findDefinitionInModule(term, path)
+}
+
+func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
+	if t, ok := term.Value.(ast.Ref); ok && len(t) > 1 {
+		term = t[0]
+	}
+
+	// violation[msg]
+	//           ^ this is key
+	if rule.Head.Key != nil {
+		result := p.findDefinitionInTerm(term, rule.Head.Key)
+		if result != nil {
+			return result
+		}
+	}
+
+	// func(hello)
+	//      ^ this is arg
+	result := p.findDefinitionInTerms(term, rule.Head.Args)
+	if result != nil {
+		return result
+	}
+
+	for _, b := range rule.Body {
+		switch t := b.Terms.(type) {
+		case *ast.Term:
+			result := p.findDefinitionInTerm(term, t)
+			if result != nil {
+				return result
+			}
+		case []*ast.Term:
+			// equality -> [hoge, fuga] = split_hoge()
+			// assign -> hoge := fuga()
+			if ast.Equality.Ref().Equal(b.Operator()) || ast.Assign.Ref().Equal(b.Operator()) {
+				result := p.findDefinitionInTerm(term, t[1])
+				if result != nil {
+					return result
+				}
+			}
+		default:
+			fmt.Fprintf(os.Stderr, "type: %T", b.Terms)
+		}
+	}
+	return nil
+}
+
+func (p *Project) findDefinitionInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
+	for _, term := range terms {
+		t := p.findDefinitionInTerm(target, term)
+		if t != nil {
+			return t
+		}
+	}
+	return nil
+}
+
+func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Term {
+	switch v := term.Value.(type) {
+	case ast.Call:
+		return p.findDefinitionInTerms(target, []*ast.Term(v))
+	case ast.Ref:
+		// import data.a
+		// a.b[c] -> a: ast.Var, b: ast.String, c: ast.Var
+		// a.b.c  -> a: ast.Var, b: ast.String, c: ast.String
+		return p.findDefinitionInTerms(target, []*ast.Term(v)[1:])
+	case *ast.Array:
+		for i := 0; i < v.Len(); i++ {
+			t := p.findDefinitionInTerm(target, v.Elem(i))
+			if t == nil {
+				continue
+			}
+			return t
+		}
+		return nil
+	case ast.Var:
+		if target.Equal(term) && target.Loc().Offset > term.Loc().Offset {
+			return term
+		}
+		return nil
+	case ast.String, ast.Boolean, ast.Number:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
 	word := term.String()
 	module := p.GetModule(path)
 
-	searchModuleName := ""
+	var searchPackageName ast.Ref
 	if strings.Contains(word, ".") /* imported method */ {
 		moduleName := word[:strings.Index(word, ".")]
-		imp := findImportModule(moduleName, module.Imports)
-
+		imp := findImportOutsidePolicy(moduleName, module.Imports)
+		if imp == nil {
+			return nil
+		}
 		word = word[strings.Index(word, ".")+1:]
-		searchModuleName = imp.Path.String()
+		var ok bool
+		searchPackageName, ok = imp.Path.Value.(ast.Ref)
+		if !ok {
+			return nil
+		}
 	} else {
-		searchModuleName = module.Package.Path.String()
+		searchPackageName = module.Package.Path
 	}
 
-	searchModules := p.findModuleFiles(searchModuleName)
+	searchPolicies := p.findPolicies(searchPackageName)
 
-	if len(searchModules) == 0 {
+	if len(searchPolicies) == 0 {
 		return nil
 	}
 
-	result := make([]LookUpResult, 0)
-	for path, mod := range searchModules {
+	result := make([]*ast.Location, 0)
+	for _, mod := range searchPolicies {
 		for _, rule := range mod.Rules {
 			if rule.Head.Name.String() == word {
 				r := rule
-				result = append(result, LookUpResult{
-					Location: r.Loc(),
-					Path:     path,
-				})
+				result = append(result, r.Loc())
 			}
 		}
 	}
 	return result
 }
 
-func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
+func findImportOutsidePolicy(moduleName string, imports []*ast.Import) *ast.Import {
 	for _, imp := range imports {
 		alias := imp.Alias.String()
 		if alias != "" && moduleName == alias {
@@ -263,15 +275,15 @@ func findImportModule(moduleName string, imports []*ast.Import) *ast.Import {
 	return nil
 }
 
-func (p *Project) findModuleFiles(moduleName string) map[string]*ast.Module {
+func (p *Project) findPolicies(packageName ast.Ref) []*ast.Module {
 	modules, err := p.getModules()
 	if err != nil {
 		return nil
 	}
-	result := make(map[string]*ast.Module)
-	for path, module := range modules {
-		if module.Package.Path.String() == moduleName {
-			result[path] = module
+	result := make([]*ast.Module, 0)
+	for _, module := range modules {
+		if module.Package.Path.Equal(packageName) {
+			result = append(result, module)
 		}
 	}
 	return result
