@@ -151,6 +151,28 @@ func TestLookupDefinition(t *testing.T) {
 				},
 			},
 		},
+		"With two library method can jump": {
+			path: testDataPath + "/src.rego",
+			location: &location.Location{
+				Row: 14,
+				Col: 11,
+				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[container]\n	container.name\n	msg = \"hello\"\n}\n\nviolation[msg] {\n	library.containers[container]\n	library.h"),
+				Text: []byte("h"),
+				File: testDataPath + "/src.rego",
+			},
+			expectResult: []cache.LookUpResult{
+				{
+					Location: &ast.Location{
+						Row:    3,
+						Col:    1,
+						Offset: len("package library\n\nh"),
+						Text: []byte("hello(msg) {\n	msg == \"hello\"\n}"),
+						File: testDataPath + "/lib/library.rego",
+					},
+					Path: testDataPath + "/lib/library.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
@@ -160,8 +182,8 @@ func TestLookupDefinition(t *testing.T) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
 			}
 
-			if diff := cmp.Diff(got, tt.expectResult); diff != "" {
-				t.Errorf("LookupDefinition result diff:\n%s", diff)
+			if diff := cmp.Diff(tt.expectResult, got); diff != "" {
+				t.Errorf("LookupDefinition result diff (-expect +got):\n%s", diff)
 			}
 		})
 	}

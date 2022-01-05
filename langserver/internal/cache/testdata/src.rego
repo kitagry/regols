@@ -14,3 +14,9 @@ violation[msg] {
 	container.name
 	msg = "hello"
 }
+
+violation[msg] {
+	library.containers[container]
+	library.hello("hello")
+	msg = "hello"
+}
