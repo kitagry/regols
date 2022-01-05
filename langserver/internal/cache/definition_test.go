@@ -117,6 +117,18 @@ func TestLookupDefinition(t *testing.T) {
 				},
 			},
 		},
+		"no definition because itself is definition": {
+			path: testDataPath + "/src.rego",
+			location: &location.Location{
+				Row: 6,
+				Col: 2,
+				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m"),
+				Text: []byte("m"),
+				File: testDataPath + "/src.rego",
+			},
+			expectResult: []cache.LookUpResult{},
+			expectErr:    nil,
+		},
 	}
 
 	for n, tt := range tests {
