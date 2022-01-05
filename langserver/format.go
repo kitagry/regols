@@ -31,6 +31,10 @@ func (h *handler) handleTextDocumentFormatting(ctx context.Context, conn *jsonrp
 		return nil, fmt.Errorf("failed to format: %w", err)
 	}
 
+	if len(formatted) == 0 {
+		return nil, nil
+	}
+
 	return ComputeEdits(params.TextDocument.URI, document.RowText, string(formatted)), nil
 }
 
