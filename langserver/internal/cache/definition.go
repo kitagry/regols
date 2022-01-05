@@ -71,9 +71,13 @@ func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
 				return result
 			}
 		case []*ast.Term:
-			result := p.findInTerms(term, t)
-			if result != nil {
-				return result
+			// equality -> [hoge, fuga] = split_hoge()
+			// assign -> hoge := fuga()
+			if ast.Equality.Ref().Equal(b.Operator()) || ast.Assign.Ref().Equal(b.Operator()) {
+				result := p.findInTerm(term, t[1])
+				if result != nil {
+					return result
+				}
 			}
 		default:
 			fmt.Fprintf(os.Stderr, "type: %T", b.Terms)
