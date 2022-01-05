@@ -104,7 +104,7 @@ func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
 		}
 		return nil
 	case ast.Var:
-		if target.Equal(term) && !target.Loc().Equal(term.Loc()) {
+		if target.Equal(term) && target.Loc().Offset > term.Loc().Offset {
 			return term
 		}
 		return nil
