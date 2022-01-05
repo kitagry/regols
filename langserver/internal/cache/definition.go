@@ -43,6 +43,10 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 }
 
 func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
+	if t, ok := term.Value.(ast.Ref); ok && len(t) > 1 {
+		term = t[0]
+	}
+
 	// violation[msg]
 	//           ^ this is key
 	if rule.Head.Key != nil {
@@ -219,7 +223,6 @@ func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
 	if strings.Contains(word, ".") /* imported method */ {
 		moduleName := word[:strings.Index(word, ".")]
 		imp := findImportModule(moduleName, module.Imports)
-
 		word = word[strings.Index(word, ".")+1:]
 		searchModuleName = imp.Path.String()
 	} else {

@@ -129,6 +129,28 @@ func TestLookupDefinition(t *testing.T) {
 			expectResult: []cache.LookUpResult{},
 			expectErr:    nil,
 		},
+		"with not library but has dot": {
+			path: testDataPath + "/src.rego",
+			location: &location.Location{
+				Row: 14,
+				Col: 11,
+				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[container]\n	container.n}"),
+				Text: []byte("n"),
+				File: testDataPath + "/src.rego",
+			},
+			expectResult: []cache.LookUpResult{
+				{
+					Location: &ast.Location{
+						Row: 13,
+						Col: 21,
+						Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[c"),
+						Text: []byte("container"),
+						File: testDataPath + "/src.rego",
+					},
+					Path: testDataPath + "/src.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
