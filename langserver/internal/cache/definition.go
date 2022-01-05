@@ -10,7 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
-func (p *Project) LookupDefinition(path string, location *location.Location) ([]LookUpResult, error) {
+func (p *Project) LookupDefinition(path string, location *location.Location) ([]*ast.Location, error) {
 	module := p.GetModule(path)
 	if module == nil {
 		return nil, fmt.Errorf("cannot find module: %s", path)
@@ -21,7 +21,7 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, err
 	}
 
-	targetTerm, rule, err := p.lookupRules(location, module.Rules, rawText)
+	targetTerm, rule, err := p.searchTargetTerm(location, module.Rules, rawText)
 	if err != nil {
 		return nil, err
 	}
@@ -29,17 +29,111 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, nil
 	}
 
-	target := p.findInRule(targetTerm, rule)
-	if target != nil {
-		result := []LookUpResult{
-			{
-				Location: target.Loc(),
-				Path:     path,
-			},
+	return p.findDefinition(targetTerm, path, rule), nil
+}
+
+func (p *Project) searchTargetTerm(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
+	for _, r := range rules {
+		if !in(location, r.Loc()) {
+			continue
 		}
-		return result, nil
+		term, err := p.searchTargetTermInRule(location, r, rawText)
+		r := r
+		return term, r, err
 	}
-	return p.findMethod(targetTerm, path), nil
+	return nil, nil, nil
+}
+
+func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
+	for _, b := range rule.Body {
+		if !in(location, b.Loc()) {
+			continue
+		}
+
+		switch t := b.Terms.(type) {
+		case *ast.Term:
+			return p.searchTargetTermInTerm(location, t, rawText)
+		case []*ast.Term:
+			return p.searchTargetTermInTerms(location, t, rawText)
+		}
+	}
+	return nil, nil
+}
+
+func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term, rawText string) (*ast.Term, error) {
+	for _, t := range terms {
+		if in(location, t.Loc()) {
+			return p.searchTargetTermInTerm(location, t, rawText)
+		}
+	}
+	return nil, nil
+}
+
+func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term, rawText string) (*ast.Term, error) {
+	switch v := term.Value.(type) {
+	case ast.Call:
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
+	case ast.Ref:
+		if len(v) == 1 {
+			return p.searchTargetTermInTerm(loc, v[0], rawText)
+		}
+		if len(v) >= 2 {
+			// This is for imported method
+			// If you use the following code.
+			// ```
+			// import data.lib.util
+			// util.test[hoge]
+			// ```
+			// Then
+			// util.test[hoge] <- ast.Ref
+			// util <- ast.Var
+			// test <- ast.String
+			// I think this is a bit wrong...
+			// https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar
+			_, ok1 := v[0].Value.(ast.Var)
+			_, ok2 := v[1].Value.(ast.String)
+			if ok1 && ok2 && (in(loc, v[0].Loc()) || in(loc, v[1].Loc())) {
+				value := ast.Ref{v[0], v[1]}
+				loc := v[0].Loc()
+				return &ast.Term{Value: value, Location: &location.Location{
+					Text:   []byte(value.String()),
+					File:   loc.File,
+					Row:    loc.Row,
+					Col:    loc.Col,
+					Offset: loc.Offset,
+				}}, nil
+			}
+		}
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
+	case *ast.Array:
+		for i := 0; i < v.Len(); i++ {
+			t, err := p.searchTargetTermInTerm(loc, v.Elem(i), rawText)
+			if err != nil {
+				return nil, err
+			}
+			if t == nil {
+				continue
+			}
+			if in(loc, t.Loc()) {
+				return t, nil
+			}
+		}
+		return nil, nil
+	case ast.Var:
+		return term, nil
+	case ast.String, ast.Boolean, ast.Number:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("not supported type %T: %v\n", v, v)
+	}
+}
+
+func (p *Project) findDefinition(term *ast.Term, path string, rule *ast.Rule) []*ast.Location {
+	target := p.findInRule(term, rule)
+	if target != nil {
+		return []*ast.Location{target.Loc()}
+	}
+	return p.findMethod(term, path)
 }
 
 func (p *Project) findInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
@@ -126,103 +220,7 @@ func (p *Project) findInTerm(target *ast.Term, term *ast.Term) *ast.Term {
 	}
 }
 
-func (p *Project) lookupRules(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
-	for _, r := range rules {
-		if !in(location, r.Loc()) {
-			continue
-		}
-		term, err := p.lookupRule(location, r, rawText)
-		r := r
-		return term, r, err
-	}
-	return nil, nil, nil
-}
-
-func (p *Project) lookupRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
-	for _, b := range rule.Body {
-		if !in(location, b.Loc()) {
-			continue
-		}
-
-		switch t := b.Terms.(type) {
-		case *ast.Term:
-			return p.lookupTerm(location, t, rawText)
-		case []*ast.Term:
-			return p.lookupTerms(location, t, rawText)
-		}
-	}
-	return nil, nil
-}
-
-func (p *Project) lookupTerms(location *location.Location, terms []*ast.Term, rawText string) (*ast.Term, error) {
-	for _, t := range terms {
-		if in(location, t.Loc()) {
-			return p.lookupTerm(location, t, rawText)
-		}
-	}
-	return nil, nil
-}
-
-func (p *Project) lookupTerm(loc *location.Location, term *ast.Term, rawText string) (*ast.Term, error) {
-	switch v := term.Value.(type) {
-	case ast.Call:
-		return p.lookupTerms(loc, []*ast.Term(v), rawText)
-	case ast.Ref:
-		if len(v) == 1 {
-			return p.lookupTerm(loc, v[0], rawText)
-		}
-		if len(v) >= 2 {
-			// This is for imported method
-			// If you use the following code.
-			// ```
-			// import data.lib.util
-			// util.test[hoge]
-			// ```
-			// Then
-			// util.test[hoge] <- ast.Ref
-			// util <- ast.Var
-			// test <- ast.String
-			// I think this is a bit wrong...
-			// https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar
-			_, ok1 := v[0].Value.(ast.Var)
-			_, ok2 := v[1].Value.(ast.String)
-			if ok1 && ok2 && (in(loc, v[0].Loc()) || in(loc, v[1].Loc())) {
-				value := ast.Ref{v[0], v[1]}
-				loc := v[0].Loc()
-				return &ast.Term{Value: value, Location: &location.Location{
-					Text:   []byte(value.String()),
-					File:   loc.File,
-					Row:    loc.Row,
-					Col:    loc.Col,
-					Offset: loc.Offset,
-				}}, nil
-			}
-		}
-		return p.lookupTerms(loc, []*ast.Term(v), rawText)
-	case *ast.Array:
-		for i := 0; i < v.Len(); i++ {
-			t, err := p.lookupTerm(loc, v.Elem(i), rawText)
-			if err != nil {
-				return nil, err
-			}
-			if t == nil {
-				continue
-			}
-			if in(loc, t.Loc()) {
-				return t, nil
-			}
-		}
-		return nil, nil
-	case ast.Var:
-		return term, nil
-	case ast.String, ast.Boolean, ast.Number:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("not supported type %T: %v\n", v, v)
-	}
-}
-
-func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
+func (p *Project) findMethod(term *ast.Term, path string) []*ast.Location {
 	word := term.String()
 	module := p.GetModule(path)
 
@@ -242,15 +240,12 @@ func (p *Project) findMethod(term *ast.Term, path string) []LookUpResult {
 		return nil
 	}
 
-	result := make([]LookUpResult, 0)
-	for path, mod := range searchModules {
+	result := make([]*ast.Location, 0)
+	for _, mod := range searchModules {
 		for _, rule := range mod.Rules {
 			if rule.Head.Name.String() == word {
 				r := rule
-				result = append(result, LookUpResult{
-					Location: r.Loc(),
-					Path:     path,
-				})
+				result = append(result, r.Loc())
 			}
 		}
 	}

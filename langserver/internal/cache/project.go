@@ -131,5 +131,4 @@ func (p *Project) GetModule(path string) *ast.Module {
 
 type LookUpResult struct {
 	Location *ast.Location
-	Path     string
 }
