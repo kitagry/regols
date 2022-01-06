@@ -10,18 +10,13 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
-func (p *Project) LookupDefinition(path string, location *location.Location) ([]*ast.Location, error) {
-	module := p.GetModule(path)
+func (p *Project) LookupDefinition(location *location.Location) ([]*ast.Location, error) {
+	module := p.GetModule(location.File)
 	if module == nil {
-		return nil, fmt.Errorf("cannot find module: %s", path)
+		return nil, fmt.Errorf("cannot find module: %s", location.File)
 	}
 
-	rawText, err := p.GetRawText(path)
-	if err != nil {
-		return nil, err
-	}
-
-	targetTerm, rule, err := p.searchTargetTerm(location, module.Rules, rawText)
+	targetTerm, rule, err := p.searchTargetTerm(location, module.Rules)
 	if err != nil {
 		return nil, err
 	}
@@ -29,22 +24,22 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, nil
 	}
 
-	return p.findDefinition(targetTerm, path, rule), nil
+	return p.findDefinition(targetTerm, location.File, rule), nil
 }
 
-func (p *Project) searchTargetTerm(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
+func (p *Project) searchTargetTerm(location *location.Location, rules []*ast.Rule) (*ast.Term, *ast.Rule, error) {
 	for _, r := range rules {
 		if !in(location, r.Loc()) {
 			continue
 		}
-		term, err := p.searchTargetTermInRule(location, r, rawText)
+		term, err := p.searchTargetTermInRule(location, r)
 		r := r
 		return term, r, err
 	}
 	return nil, nil, nil
 }
 
-func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule) (*ast.Term, error) {
 	for _, b := range rule.Body {
 		if !in(location, b.Loc()) {
 			continue
@@ -52,30 +47,30 @@ func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.
 
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			return p.searchTargetTermInTerm(location, t, rawText)
+			return p.searchTargetTermInTerm(location, t)
 		case []*ast.Term:
-			return p.searchTargetTermInTerms(location, t, rawText)
+			return p.searchTargetTermInTerms(location, t)
 		}
 	}
 	return nil, nil
 }
 
-func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term) (*ast.Term, error) {
 	for _, t := range terms {
 		if in(location, t.Loc()) {
-			return p.searchTargetTermInTerm(location, t, rawText)
+			return p.searchTargetTermInTerm(location, t)
 		}
 	}
 	return nil, nil
 }
 
-func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term) (*ast.Term, error) {
 	switch v := term.Value.(type) {
 	case ast.Call:
-		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
 	case ast.Ref:
 		if len(v) == 1 {
-			return p.searchTargetTermInTerm(loc, v[0], rawText)
+			return p.searchTargetTermInTerm(loc, v[0])
 		}
 		if len(v) >= 2 {
 			// This is for imported method
@@ -104,10 +99,10 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term,
 				}}, nil
 			}
 		}
-		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			t, err := p.searchTargetTermInTerm(loc, v.Elem(i), rawText)
+			t, err := p.searchTargetTermInTerm(loc, v.Elem(i))
 			if err != nil {
 				return nil, err
 			}
