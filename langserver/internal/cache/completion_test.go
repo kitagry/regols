@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -185,10 +186,40 @@ violation[msg] {
 				},
 			},
 		},
+		"not prefix term": {
+			files: map[string]cache.File{
+				"main.rego": {
+					RowText: `package main
+
+violation[msg] {
+	msg = "hello"
+
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 5,
+				Col: 1,
+				Offset: len("package main\n\nviolation[msg] {\n	msg = \"hello\"\n	"),
+				Text: []byte("	"),
+				File: "main.rego",
+			},
+			expectItems: []cache.CompletionItem{
+				{
+					Label: "msg",
+					Kind:  cache.VariableItem,
+				},
+				{
+					Label: "violation",
+					Kind:  cache.FunctionItem,
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
+			fmt.Println(n)
 			project, err := cache.NewProjectWithFiles(tt.files)
 			if err != nil {
 				t.Fatal(err)

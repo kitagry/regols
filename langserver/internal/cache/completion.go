@@ -27,7 +27,7 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 	}
 
 	// list candidates
-	list := p.listCompletionItemsForTerms(term)
+	list := p.listCompletionItemsForTerms(location, term)
 
 	// filter items
 	list = filterCompletionItems(term, list)
@@ -35,10 +35,10 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 	return list, nil
 }
 
-func (p *Project) listCompletionItemsForTerms(target *ast.Term) []CompletionItem {
+func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *ast.Term) []CompletionItem {
 	result := make([]CompletionItem, 0)
 
-	module := p.GetModule(target.Loc().File)
+	module := p.GetModule(location.File)
 	if module == nil {
 		return nil
 	}
@@ -50,9 +50,9 @@ func (p *Project) listCompletionItemsForTerms(target *ast.Term) []CompletionItem
 		})
 	}
 
-	rule := p.searchRuleForTerm(target)
+	rule := p.searchRuleForTerm(location)
 	if rule != nil {
-		list := p.listCompletionItemsInRule(target, rule)
+		list := p.listCompletionItemsInRule(location, rule)
 		result = append(result, list...)
 	}
 
@@ -63,7 +63,11 @@ func (p *Project) listCompletionItemsForTerms(target *ast.Term) []CompletionItem
 		})
 	}
 
-	if ref, ok := target.Value.(ast.Ref); ok && len(ref) > 1 {
+	if target == nil {
+		return result
+	}
+
+	if _, ok := target.Value.(ast.Ref); ok {
 		importRef := p.findPolicyRef(target)
 		policies := p.findPolicies(importRef)
 		for _, p := range policies {
@@ -79,7 +83,7 @@ func (p *Project) listCompletionItemsForTerms(target *ast.Term) []CompletionItem
 	return result
 }
 
-func (p *Project) listCompletionItemsInRule(target *ast.Term, rule *ast.Rule) []CompletionItem {
+func (p *Project) listCompletionItemsInRule(loc *ast.Location, rule *ast.Rule) []CompletionItem {
 	result := make([]CompletionItem, 0)
 	if rule.Head.Key != nil {
 		result = append(result, CompletionItem{
@@ -96,17 +100,17 @@ func (p *Project) listCompletionItemsInRule(target *ast.Term, rule *ast.Rule) []
 	}
 
 	for _, b := range rule.Body {
-		if b.Loc().Offset >= target.Loc().Offset {
+		if b.Loc().Row >= loc.Row {
 			break
 		}
 
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			list := p.listCompletionItemsInTerm(target, t)
+			list := p.listCompletionItemsInTerm(loc, t)
 			result = append(result, list...)
 		case []*ast.Term:
 			if ast.Equality.Ref().Equal(b.Operator()) || ast.Assign.Ref().Equal(b.Operator()) {
-				list := p.listCompletionItemsInTerm(target, t[1])
+				list := p.listCompletionItemsInTerm(loc, t[1])
 				result = append(result, list...)
 			}
 		}
@@ -115,12 +119,12 @@ func (p *Project) listCompletionItemsInRule(target *ast.Term, rule *ast.Rule) []
 	return result
 }
 
-func (p *Project) listCompletionItemsInTerm(target *ast.Term, term *ast.Term) []CompletionItem {
+func (p *Project) listCompletionItemsInTerm(loc *ast.Location, term *ast.Term) []CompletionItem {
 	result := make([]CompletionItem, 0)
 	switch v := term.Value.(type) {
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			result = append(result, p.listCompletionItemsInTerm(target, v.Elem(i))...)
+			result = append(result, p.listCompletionItemsInTerm(loc, v.Elem(i))...)
 		}
 	case ast.Ref:
 		// skip library name
@@ -129,7 +133,7 @@ func (p *Project) listCompletionItemsInTerm(target *ast.Term, term *ast.Term) []
 		// lib.hoge[fuga]
 		// ```
 		for i := 1; i < len(v); i++ {
-			result = append(result, p.listCompletionItemsInTerm(target, v[i])...)
+			result = append(result, p.listCompletionItemsInTerm(loc, v[i])...)
 		}
 	case ast.Var:
 		result = append(result, CompletionItem{
@@ -168,6 +172,9 @@ func filterCompletionItems(target *ast.Term, list []CompletionItem) []Completion
 }
 
 func getTermPrefix(target *ast.Term) string {
+	if target == nil {
+		return ""
+	}
 	switch v := target.Value.(type) {
 	case ast.Ref:
 		if s, ok := v[len(v)-1].Value.(ast.String); ok {

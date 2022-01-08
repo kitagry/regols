@@ -38,14 +38,14 @@ func (p *Project) searchTargetTerm(location *location.Location) (*ast.Term, erro
 	return nil, nil
 }
 
-func (p *Project) searchRuleForTerm(term *ast.Term) *ast.Rule {
-	module := p.GetModule(term.Loc().File)
+func (p *Project) searchRuleForTerm(loc *ast.Location) *ast.Rule {
+	module := p.GetModule(loc.File)
 	if module == nil {
 		return nil
 	}
 
 	for _, r := range module.Rules {
-		if in(term.Loc(), r.Loc()) {
+		if in(loc, r.Loc()) {
 			return r
 		}
 	}
@@ -137,7 +137,7 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term)
 }
 
 func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
-	rule := p.searchRuleForTerm(term)
+	rule := p.searchRuleForTerm(term.Loc())
 	if rule != nil {
 		target := p.findDefinitionInRule(term, rule)
 		if target != nil {
