@@ -1,7 +1,6 @@
 package cache_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -219,7 +218,6 @@ violation[msg] {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			fmt.Println(n)
 			project, err := cache.NewProjectWithFiles(tt.files)
 			if err != nil {
 				t.Fatal(err)

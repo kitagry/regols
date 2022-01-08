@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -23,7 +21,7 @@ const (
 )
 
 func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem, error) {
-	term, err := p.searchTargetTerm(location)
+	term, err := p.SearchTargetTerm(location)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +43,6 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 
 	for _, r := range module.Rules {
 		if in(location, r.Loc()) {
-			fmt.Fprintf(os.Stderr, "term in rule: %+v\n", r)
 			return p.listCompletionItemsForTerms(location, target)
 		}
 	}
@@ -67,7 +64,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 		})
 	}
 
-	rule := p.searchRuleForTerm(location)
+	rule := p.findRuleForTerm(location)
 	if rule != nil {
 		list := p.listCompletionItemsInRule(location, rule)
 		result = append(result, list...)
