@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -27,12 +29,27 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 	}
 
 	// list candidates
-	list := p.listCompletionItemsForTerms(location, term)
+	list := p.listCompletionCandidates(location, term)
 
 	// filter items
 	list = filterCompletionItems(term, list)
 
 	return list, nil
+}
+
+func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.Term) []CompletionItem {
+	module := p.GetModule(location.File)
+	if module == nil {
+		return nil
+	}
+
+	for _, r := range module.Rules {
+		if in(location, r.Loc()) {
+			fmt.Fprintf(os.Stderr, "term in rule: %+v\n", r)
+			return p.listCompletionItemsForTerms(location, target)
+		}
+	}
+	return nil
 }
 
 func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *ast.Term) []CompletionItem {
@@ -85,18 +102,20 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 
 func (p *Project) listCompletionItemsInRule(loc *ast.Location, rule *ast.Rule) []CompletionItem {
 	result := make([]CompletionItem, 0)
-	if rule.Head.Key != nil {
-		result = append(result, CompletionItem{
-			Label: rule.Head.Key.String(),
-			Kind:  VariableItem,
-		})
-	}
+	if !in(loc, rule.Head.Loc()) {
+		if rule.Head.Key != nil {
+			result = append(result, CompletionItem{
+				Label: rule.Head.Key.String(),
+				Kind:  VariableItem,
+			})
+		}
 
-	for _, arg := range rule.Head.Args {
-		result = append(result, CompletionItem{
-			Label: arg.String(),
-			Kind:  VariableItem,
-		})
+		for _, arg := range rule.Head.Args {
+			result = append(result, CompletionItem{
+				Label: arg.String(),
+				Kind:  VariableItem,
+			})
+		}
 	}
 
 	for _, b := range rule.Body {
