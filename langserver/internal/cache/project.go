@@ -3,6 +3,7 @@ package cache
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -10,6 +11,7 @@ import (
 
 type Project struct {
 	rootPath  string
+	mu        sync.Mutex
 	openFiles map[string]File
 	modules   map[string]*ast.Module
 	errs      map[string]ast.Errors
@@ -34,6 +36,29 @@ func NewProject(rootPath string) (*Project, error) {
 	}, nil
 }
 
+func NewProjectWithFiles(files map[string]File) (*Project, error) {
+	modules := make(map[string]*ast.Module)
+	errs := make(map[string]ast.Errors)
+	for path, file := range files {
+		module, err := ast.ParseModule(path, file.RowText)
+		if astErr, ok := err.(ast.Errors); ok {
+			errs[path] = astErr
+		} else if err != nil {
+			return nil, err
+		}
+		modules[path] = module
+	}
+
+	if len(modules) == 0 {
+		return nil, fmt.Errorf("NewProjectWithFiles should have least one parseable file")
+	}
+	return &Project{
+		openFiles: files,
+		modules:   modules,
+		errs:      errs,
+	}, nil
+}
+
 func (p *Project) getModules() (map[string]*ast.Module, error) {
 	if p.modules != nil {
 		return p.modules, nil
@@ -43,9 +68,13 @@ func (p *Project) getModules() (map[string]*ast.Module, error) {
 		return nil, err
 	}
 	if regoErrs != nil {
+		p.mu.Lock()
+		defer p.mu.Unlock()
 		p.errs = regoErrs
 		return nil, fmt.Errorf("failed to load rego file: %v", regoErrs)
 	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.modules = modules
 	return modules, nil
 }
@@ -80,6 +109,8 @@ func loadRegoFiles(rootPath string) (map[string]*ast.Module, map[string]ast.Erro
 }
 
 func (p *Project) UpdateFile(path string, text string, version int) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.openFiles[path] = File{
 		RowText: text,
 		Version: version,
@@ -121,6 +152,8 @@ func (p *Project) GetOpenFiles() map[string]File {
 }
 
 func (p *Project) DeleteFile(path string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	delete(p.openFiles, path)
 	delete(p.errs, path)
 }

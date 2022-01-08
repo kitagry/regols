@@ -24,13 +24,8 @@ func (h *handler) handleTextDocumentDefinition(ctx context.Context, conn *jsonrp
 }
 
 func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position lsp.Position) ([]lsp.Location, error) {
-	path := documentURIToURI(uri)
-	file, ok := h.project.GetFile(path)
-	if !ok {
-		return nil, nil
-	}
-	loc := toOPALocation(position, file.RowText)
-	lookupResults, err := h.project.LookupDefinition(path, loc)
+	loc := h.toOPALocation(position, uri)
+	lookupResults, err := h.project.LookupDefinition(loc)
 	if err != nil {
 		h.logger.Printf("failed to get definition: %v", err)
 		return nil, nil
@@ -50,10 +45,16 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 	return result, nil
 }
 
-func toOPALocation(position lsp.Position, rawText string) *location.Location {
+func (h *handler) toOPALocation(position lsp.Position, uri lsp.DocumentURI) *location.Location {
+	path := documentURIToURI(uri)
+	file, ok := h.project.GetFile(path)
+	if !ok {
+		return nil
+	}
+
 	startInd := 0
 	for i := 0; i < position.Line; i++ {
-		startInd += strings.Index(rawText[startInd:], "\n") + 1
+		startInd += strings.Index(file.RowText[startInd:], "\n") + 1
 	}
 	startInd += position.Character
 
@@ -61,6 +62,7 @@ func toOPALocation(position lsp.Position, rawText string) *location.Location {
 		Row:    position.Line + 1,
 		Col:    position.Character + 1,
 		Offset: startInd,
+		File:   path,
 	}
 }
 

@@ -24,13 +24,11 @@ func TestLookupDefinition(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		path         string
 		location     *location.Location
 		expectResult []*ast.Location
 		expectErr    error
 	}{
 		"in file definition": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 9,
 				Col: 8,
@@ -49,7 +47,6 @@ func TestLookupDefinition(t *testing.T) {
 			},
 		},
 		"in file definition in args": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 9,
 				Col: 2,
@@ -68,7 +65,6 @@ func TestLookupDefinition(t *testing.T) {
 			},
 		},
 		"same library but other definition": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 7,
 				Col: 5,
@@ -87,7 +83,6 @@ func TestLookupDefinition(t *testing.T) {
 			},
 		},
 		"in library definition": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 8,
 				Col: 10,
@@ -106,7 +101,6 @@ func TestLookupDefinition(t *testing.T) {
 			},
 		},
 		"no definition because itself is definition": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 6,
 				Col: 2,
@@ -118,7 +112,6 @@ func TestLookupDefinition(t *testing.T) {
 			expectErr:    nil,
 		},
 		"with not library but has dot": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 14,
 				Col: 11,
@@ -137,7 +130,6 @@ func TestLookupDefinition(t *testing.T) {
 			},
 		},
 		"With two library method can jump": {
-			path: testDataPath + "/src.rego",
 			location: &location.Location{
 				Row: 14,
 				Col: 11,
@@ -159,7 +151,7 @@ func TestLookupDefinition(t *testing.T) {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			got, err := p.LookupDefinition(tt.path, tt.location)
+			got, err := p.LookupDefinition(tt.location)
 			if !errors.Is(err, tt.expectErr) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
 			}

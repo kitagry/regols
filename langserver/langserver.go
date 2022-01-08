@@ -16,7 +16,7 @@ type handler struct {
 	logger *log.Logger
 
 	diagnosticRequest chan lsp.DocumentURI
-	rootPath          string
+	initializeParams  lsp.InitializeParams
 
 	project *cache.Project
 }
@@ -53,6 +53,8 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		return h.handleTextDocumentFormatting(ctx, conn, req)
 	case "textDocument/definition":
 		return h.handleTextDocumentDefinition(ctx, conn, req)
+	case "textDocument/completion":
+		return h.handleTextDocumentCompletion(ctx, conn, req)
 	}
 	return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound, Message: fmt.Sprintf("method not supported: %s", req.Method)}
 }

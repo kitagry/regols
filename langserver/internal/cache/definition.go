@@ -10,18 +10,8 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
-func (p *Project) LookupDefinition(path string, location *location.Location) ([]*ast.Location, error) {
-	module := p.GetModule(path)
-	if module == nil {
-		return nil, fmt.Errorf("cannot find module: %s", path)
-	}
-
-	rawText, err := p.GetRawText(path)
-	if err != nil {
-		return nil, err
-	}
-
-	targetTerm, rule, err := p.searchTargetTerm(location, module.Rules, rawText)
+func (p *Project) LookupDefinition(location *location.Location) ([]*ast.Location, error) {
+	targetTerm, err := p.searchTargetTerm(location)
 	if err != nil {
 		return nil, err
 	}
@@ -29,22 +19,40 @@ func (p *Project) LookupDefinition(path string, location *location.Location) ([]
 		return nil, nil
 	}
 
-	return p.findDefinition(targetTerm, path, rule), nil
+	return p.findDefinition(targetTerm, location.File), nil
 }
 
-func (p *Project) searchTargetTerm(location *location.Location, rules []*ast.Rule, rawText string) (*ast.Term, *ast.Rule, error) {
-	for _, r := range rules {
+func (p *Project) searchTargetTerm(location *location.Location) (*ast.Term, error) {
+	module := p.GetModule(location.File)
+	if module == nil {
+		return nil, nil
+	}
+
+	for _, r := range module.Rules {
 		if !in(location, r.Loc()) {
 			continue
 		}
-		term, err := p.searchTargetTermInRule(location, r, rawText)
-		r := r
-		return term, r, err
+		term, err := p.searchTargetTermInRule(location, r)
+		return term, err
 	}
-	return nil, nil, nil
+	return nil, nil
 }
 
-func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule, rawText string) (*ast.Term, error) {
+func (p *Project) searchRuleForTerm(loc *ast.Location) *ast.Rule {
+	module := p.GetModule(loc.File)
+	if module == nil {
+		return nil
+	}
+
+	for _, r := range module.Rules {
+		if in(loc, r.Loc()) {
+			return r
+		}
+	}
+	return nil
+}
+
+func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule) (*ast.Term, error) {
 	for _, b := range rule.Body {
 		if !in(location, b.Loc()) {
 			continue
@@ -52,30 +60,30 @@ func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.
 
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			return p.searchTargetTermInTerm(location, t, rawText)
+			return p.searchTargetTermInTerm(location, t)
 		case []*ast.Term:
-			return p.searchTargetTermInTerms(location, t, rawText)
+			return p.searchTargetTermInTerms(location, t)
 		}
 	}
 	return nil, nil
 }
 
-func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term) (*ast.Term, error) {
 	for _, t := range terms {
 		if in(location, t.Loc()) {
-			return p.searchTargetTermInTerm(location, t, rawText)
+			return p.searchTargetTermInTerm(location, t)
 		}
 	}
 	return nil, nil
 }
 
-func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term, rawText string) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term) (*ast.Term, error) {
 	switch v := term.Value.(type) {
 	case ast.Call:
-		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
 	case ast.Ref:
 		if len(v) == 1 {
-			return p.searchTargetTermInTerm(loc, v[0], rawText)
+			return p.searchTargetTermInTerm(loc, v[0])
 		}
 		if len(v) >= 2 {
 			// This is for imported method
@@ -104,10 +112,10 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term,
 				}}, nil
 			}
 		}
-		return p.searchTargetTermInTerms(loc, []*ast.Term(v), rawText)
+		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			t, err := p.searchTargetTermInTerm(loc, v.Elem(i), rawText)
+			t, err := p.searchTargetTermInTerm(loc, v.Elem(i))
 			if err != nil {
 				return nil, err
 			}
@@ -128,10 +136,13 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term,
 	}
 }
 
-func (p *Project) findDefinition(term *ast.Term, path string, rule *ast.Rule) []*ast.Location {
-	target := p.findDefinitionInRule(term, rule)
-	if target != nil {
-		return []*ast.Location{target.Loc()}
+func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
+	rule := p.searchRuleForTerm(term.Loc())
+	if rule != nil {
+		target := p.findDefinitionInRule(term, rule)
+		if target != nil {
+			return []*ast.Location{target.Loc()}
+		}
 	}
 	return p.findDefinitionInModule(term, path)
 }
@@ -221,30 +232,16 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 }
 
 func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
-	word := term.String()
-	module := p.GetModule(path)
-
-	var searchPackageName ast.Ref
-	if strings.Contains(word, ".") /* imported method */ {
-		moduleName := word[:strings.Index(word, ".")]
-		imp := findImportOutsidePolicy(moduleName, module.Imports)
-		if imp == nil {
-			return nil
-		}
-		word = word[strings.Index(word, ".")+1:]
-		var ok bool
-		searchPackageName, ok = imp.Path.Value.(ast.Ref)
-		if !ok {
-			return nil
-		}
-	} else {
-		searchPackageName = module.Package.Path
-	}
-
+	searchPackageName := p.findPolicyRef(term)
 	searchPolicies := p.findPolicies(searchPackageName)
 
 	if len(searchPolicies) == 0 {
 		return nil
+	}
+
+	word := term.String()
+	if strings.Contains(word, ".") /* imported method */ {
+		word = word[strings.Index(word, ".")+1:]
 	}
 
 	result := make([]*ast.Location, 0)
@@ -257,6 +254,27 @@ func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Loc
 		}
 	}
 	return result
+}
+
+func (p *Project) findPolicyRef(term *ast.Term) ast.Ref {
+	module := p.GetModule(term.Loc().File)
+	if module == nil {
+		return nil
+	}
+
+	if ref, ok := term.Value.(ast.Ref); ok && len(ref) > 1 {
+		imp := findImportOutsidePolicy(ref[0].String(), module.Imports)
+		if imp == nil {
+			return nil
+		}
+		result, ok := imp.Path.Value.(ast.Ref)
+		if !ok {
+			return nil
+		}
+		return result
+	}
+
+	return module.Package.Path
 }
 
 func findImportOutsidePolicy(moduleName string, imports []*ast.Import) *ast.Import {
