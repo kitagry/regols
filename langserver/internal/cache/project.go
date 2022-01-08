@@ -34,6 +34,29 @@ func NewProject(rootPath string) (*Project, error) {
 	}, nil
 }
 
+func NewProjectWithFiles(files map[string]File) (*Project, error) {
+	modules := make(map[string]*ast.Module)
+	errs := make(map[string]ast.Errors)
+	for path, file := range files {
+		module, err := ast.ParseModule(path, file.RowText)
+		if astErr, ok := err.(ast.Errors); ok {
+			errs[path] = astErr
+		} else if err != nil {
+			return nil, err
+		}
+		modules[path] = module
+	}
+
+	if len(modules) == 0 {
+		return nil, fmt.Errorf("NewProjectWithFiles should have least one parseable file")
+	}
+	return &Project{
+		openFiles: files,
+		modules:   modules,
+		errs:      errs,
+	}, nil
+}
+
 func (p *Project) getModules() (map[string]*ast.Module, error) {
 	if p.modules != nil {
 		return p.modules, nil

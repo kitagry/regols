@@ -11,12 +11,7 @@ import (
 )
 
 func (p *Project) LookupDefinition(location *location.Location) ([]*ast.Location, error) {
-	module := p.GetModule(location.File)
-	if module == nil {
-		return nil, fmt.Errorf("cannot find module: %s", location.File)
-	}
-
-	targetTerm, rule, err := p.searchTargetTerm(location, module.Rules)
+	targetTerm, err := p.searchTargetTerm(location)
 	if err != nil {
 		return nil, err
 	}
@@ -24,19 +19,37 @@ func (p *Project) LookupDefinition(location *location.Location) ([]*ast.Location
 		return nil, nil
 	}
 
-	return p.findDefinition(targetTerm, location.File, rule), nil
+	return p.findDefinition(targetTerm, location.File), nil
 }
 
-func (p *Project) searchTargetTerm(location *location.Location, rules []*ast.Rule) (*ast.Term, *ast.Rule, error) {
-	for _, r := range rules {
+func (p *Project) searchTargetTerm(location *location.Location) (*ast.Term, error) {
+	module := p.GetModule(location.File)
+	if module == nil {
+		return nil, nil
+	}
+
+	for _, r := range module.Rules {
 		if !in(location, r.Loc()) {
 			continue
 		}
 		term, err := p.searchTargetTermInRule(location, r)
-		r := r
-		return term, r, err
+		return term, err
 	}
-	return nil, nil, nil
+	return nil, nil
+}
+
+func (p *Project) searchRuleForTerm(term *ast.Term) *ast.Rule {
+	module := p.GetModule(term.Loc().File)
+	if module == nil {
+		return nil
+	}
+
+	for _, r := range module.Rules {
+		if in(term.Loc(), r.Loc()) {
+			return r
+		}
+	}
+	return nil
 }
 
 func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule) (*ast.Term, error) {
@@ -123,10 +136,13 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term)
 	}
 }
 
-func (p *Project) findDefinition(term *ast.Term, path string, rule *ast.Rule) []*ast.Location {
-	target := p.findDefinitionInRule(term, rule)
-	if target != nil {
-		return []*ast.Location{target.Loc()}
+func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
+	rule := p.searchRuleForTerm(term)
+	if rule != nil {
+		target := p.findDefinitionInRule(term, rule)
+		if target != nil {
+			return []*ast.Location{target.Loc()}
+		}
 	}
 	return p.findDefinitionInModule(term, path)
 }

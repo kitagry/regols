@@ -20,6 +20,7 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, err
 	}
+	h.initializeParams = params
 
 	p, err := cache.NewProject(params.RootPath)
 	if err != nil {
@@ -34,6 +35,10 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 			},
 			DocumentFormattingProvider: true,
 			DefinitionProvider:         true,
+			CompletionProvider: &lsp.CompletionOptions{
+				TriggerCharacters: []string{"*"},
+				ResolveProvider:   true,
+			},
 		},
 	}, nil
 }
