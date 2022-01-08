@@ -232,30 +232,16 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 }
 
 func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
-	word := term.String()
-	module := p.GetModule(path)
-
-	var searchPackageName ast.Ref
-	if strings.Contains(word, ".") /* imported method */ {
-		moduleName := word[:strings.Index(word, ".")]
-		imp := findImportOutsidePolicy(moduleName, module.Imports)
-		if imp == nil {
-			return nil
-		}
-		word = word[strings.Index(word, ".")+1:]
-		var ok bool
-		searchPackageName, ok = imp.Path.Value.(ast.Ref)
-		if !ok {
-			return nil
-		}
-	} else {
-		searchPackageName = module.Package.Path
-	}
-
+	searchPackageName := p.findPolicyRef(term)
 	searchPolicies := p.findPolicies(searchPackageName)
 
 	if len(searchPolicies) == 0 {
 		return nil
+	}
+
+	word := term.String()
+	if strings.Contains(word, ".") /* imported method */ {
+		word = word[strings.Index(word, ".")+1:]
 	}
 
 	result := make([]*ast.Location, 0)
@@ -268,6 +254,27 @@ func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Loc
 		}
 	}
 	return result
+}
+
+func (p *Project) findPolicyRef(term *ast.Term) ast.Ref {
+	module := p.GetModule(term.Loc().File)
+	if module == nil {
+		return nil
+	}
+
+	if ref, ok := term.Value.(ast.Ref); ok && len(ref) > 1 {
+		imp := findImportOutsidePolicy(ref[0].String(), module.Imports)
+		if imp == nil {
+			return nil
+		}
+		result, ok := imp.Path.Value.(ast.Ref)
+		if !ok {
+			return nil
+		}
+		return result
+	}
+
+	return module.Package.Path
 }
 
 func findImportOutsidePolicy(moduleName string, imports []*ast.Import) *ast.Import {

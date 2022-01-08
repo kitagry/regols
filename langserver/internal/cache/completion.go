@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -27,7 +25,6 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(os.Stderr, "%+v", term)
 
 	// list candidates
 	list := p.listCompletionItemsForTerms(term)
@@ -64,6 +61,19 @@ func (p *Project) listCompletionItemsForTerms(target *ast.Term) []CompletionItem
 			Label: r.Head.Name.String(),
 			Kind:  FunctionItem,
 		})
+	}
+
+	if ref, ok := target.Value.(ast.Ref); ok && len(ref) > 1 {
+		importRef := p.findPolicyRef(target)
+		policies := p.findPolicies(importRef)
+		for _, p := range policies {
+			for _, r := range p.Rules {
+				result = append(result, CompletionItem{
+					Label: r.Head.Name.String(),
+					Kind:  FunctionItem,
+				})
+			}
+		}
 	}
 
 	return result
@@ -144,9 +154,13 @@ func filterCompletionItems(target *ast.Term, list []CompletionItem) []Completion
 	termPrefix := getTermPrefix(target)
 
 	result := make([]CompletionItem, 0)
+	exist := make(map[CompletionItem]struct{})
 	for _, item := range list {
 		if strings.HasPrefix(item.Label, termPrefix) {
-			result = append(result, item)
+			if _, ok := exist[item]; !ok {
+				result = append(result, item)
+				exist[item] = struct{}{}
+			}
 		}
 	}
 
@@ -156,7 +170,10 @@ func filterCompletionItems(target *ast.Term, list []CompletionItem) []Completion
 func getTermPrefix(target *ast.Term) string {
 	switch v := target.Value.(type) {
 	case ast.Ref:
-		return v[len(v)-1].String()
+		if s, ok := v[len(v)-1].Value.(ast.String); ok {
+			return string(s)
+		}
+		return ""
 	default:
 		return target.String()
 	}

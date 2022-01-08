@@ -127,6 +127,64 @@ is_hello(msg) {
 				},
 			},
 		},
+		"completion library methods": {
+			files: map[string]cache.File{
+				"main.rego": {
+					RowText: `package main
+
+import data.lib
+
+violation [msg] {
+	lib.i
+}`,
+				},
+				"lib.rego": {
+					RowText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 6,
+				Col: 6,
+				Offset: len("package main\n\nimport data.lib\n\nviolation [msg] {\n	lib.i"),
+				File: "main.rego",
+				Text: []byte("i"),
+			},
+			expectItems: []cache.CompletionItem{
+				{
+					Label: "is_hello",
+					Kind:  cache.FunctionItem,
+				},
+			},
+		},
+		"delete duplicate": {
+			files: map[string]cache.File{
+				"main.rego": {
+					RowText: `package main
+
+violation[msg] {
+	msg = "hello"
+	m
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 5,
+				Col: 2,
+				Offset: len("package main\n\nviolation[msg] {\n	msg = \"hello\"\n	m"),
+				Text: []byte("m"),
+				File: "main.rego",
+			},
+			expectItems: []cache.CompletionItem{
+				{
+					Label: "msg",
+					Kind:  cache.VariableItem,
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
