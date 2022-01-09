@@ -3,7 +3,6 @@ package source_test
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -214,6 +213,56 @@ violation[msg] {
 				},
 			},
 		},
+		"built-in completion": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+violation[msg] {
+	j
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 2,
+				Offset: len("package main\n\nviolation[msg] {\n	j"),
+				Text: []byte("j"),
+				File: "main.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:  "json.patch",
+					Kind:   source.BuiltinFunctionItem,
+					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+				},
+			},
+		},
+		"built-in completion with prefix": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+violation[msg] {
+	json.p
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 7,
+				Offset: len("package main\n\nviolation[msg] {\n	json.p"),
+				Text: []byte("p"),
+				File: "main.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:  "patch",
+					Kind:   source.BuiltinFunctionItem,
+					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
@@ -228,9 +277,20 @@ violation[msg] {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(tt.expectItems, got); diff != "" {
-				t.Errorf("LookupDefinition result diff (-expect +got):\n%s", diff)
+			for _, e := range tt.expectItems {
+				if !in(e, got) {
+					t.Errorf("LookupDefinition should return item %v, got %v", e, got)
+				}
 			}
 		})
 	}
+}
+
+func in(item source.CompletionItem, list []source.CompletionItem) bool {
+	for _, l := range list {
+		if item == l {
+			return true
+		}
+	}
+	return false
 }

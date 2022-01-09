@@ -33,8 +33,9 @@ func completionItemToLspCompletionList(items []source.CompletionItem) lsp.Comple
 	completoinItems := make([]lsp.CompletionItem, len(items))
 	for i, c := range items {
 		completoinItems[i] = lsp.CompletionItem{
-			Label: c.Label,
-			Kind:  kindToLspKind(c.Kind),
+			Label:  c.Label,
+			Kind:   kindToLspKind(c.Kind),
+			Detail: c.Detail,
 		}
 	}
 
@@ -50,7 +51,7 @@ func kindToLspKind(kind source.CompletionKind) lsp.CompletionItemKind {
 		return lsp.CIKVariable
 	case source.PackageItem:
 		return lsp.CIKModule
-	case source.FunctionItem:
+	case source.FunctionItem, source.BuiltinFunctionItem:
 		return lsp.CIKFunction
 	default:
 		return lsp.CIKText

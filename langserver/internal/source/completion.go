@@ -1,14 +1,16 @@
 package source
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 )
 
 type CompletionItem struct {
-	Label string
-	Kind  CompletionKind
+	Label  string
+	Kind   CompletionKind
+	Detail string
 }
 
 type CompletionKind int
@@ -18,6 +20,7 @@ const (
 	VariableItem
 	PackageItem
 	FunctionItem
+	BuiltinFunctionItem
 )
 
 func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem, error) {
@@ -94,6 +97,8 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 		}
 	}
 
+	result = append(result, p.listBuiltinFunction(target)...)
+
 	return result
 }
 
@@ -156,6 +161,43 @@ func (p *Project) listCompletionItemsInTerm(loc *ast.Location, term *ast.Term) [
 			Label: v.String(),
 			Kind:  VariableItem,
 		})
+	}
+	return result
+}
+
+func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
+	if term == nil {
+		return nil
+	}
+
+	result := make([]CompletionItem, 0)
+	ref, ok := term.Value.(ast.Ref)
+	if !ok {
+		for _, b := range ast.DefaultBuiltins {
+			if b.Infix != "" {
+				continue
+			}
+			result = append(result, CompletionItem{
+				Label:  b.Name,
+				Kind:   BuiltinFunctionItem,
+				Detail: b.Decl.String(),
+			})
+		}
+		return result
+	}
+
+	val := ref[0]
+	for _, b := range ast.DefaultBuiltins {
+		if b.Infix != "" {
+			continue
+		}
+		if strings.HasPrefix(b.Name, fmt.Sprintf("%s.", val.Value.String())) {
+			result = append(result, CompletionItem{
+				Label:  strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String())),
+				Kind:   BuiltinFunctionItem,
+				Detail: b.Decl.String(),
+			})
+		}
 	}
 	return result
 }
