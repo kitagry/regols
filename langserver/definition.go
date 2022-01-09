@@ -47,14 +47,14 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 
 func (h *handler) toOPALocation(position lsp.Position, uri lsp.DocumentURI) *location.Location {
 	path := documentURIToURI(uri)
-	file, ok := h.project.GetFile(path)
+	rawText, ok := h.project.GetFile(path)
 	if !ok {
 		return nil
 	}
 
 	startInd := 0
 	for i := 0; i < position.Line; i++ {
-		startInd += strings.Index(file.RowText[startInd:], "\n") + 1
+		startInd += strings.Index(rawText[startInd:], "\n") + 1
 	}
 	startInd += position.Character
 

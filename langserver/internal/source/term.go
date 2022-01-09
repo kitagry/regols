@@ -1,4 +1,4 @@
-package cache
+package source
 
 import (
 	"fmt"
@@ -8,20 +8,15 @@ import (
 )
 
 func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term, err error) {
-	module := p.GetModule(location.File)
-	if module == nil {
-		return nil, nil
-	}
-
 	// When parse err like following, we should term as "lib.".
 	// module doesn't have `lib.`. we should get `lib` var, and then we change it as ref `lib.`
 	// ```
 	// import lib
 	// lib.
 	// ```
-	errs := p.errs[location.File]
+	policy := p.cache.Get(location.File)
 	var isParseErrLocation bool
-	for _, err := range errs {
+	for _, err := range policy.Errs {
 		if err.Code == ast.ParseErr && err.Location.Offset == location.Offset {
 			isParseErrLocation = true
 			location.Col--
@@ -29,7 +24,7 @@ func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term,
 		}
 	}
 
-	for _, r := range module.Rules {
+	for _, r := range policy.Module.Rules {
 		if !in(location, r.Loc()) {
 			continue
 		}

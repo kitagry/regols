@@ -1,4 +1,4 @@
-package cache
+package source
 
 import (
 	"strings"
@@ -83,7 +83,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 
 	if _, ok := target.Value.(ast.Ref); ok {
 		importRef := p.findPolicyRef(target)
-		policies := p.findPolicies(importRef)
+		policies := p.cache.FindPolicies(importRef)
 		for _, p := range policies {
 			for _, r := range p.Rules {
 				result = append(result, CompletionItem{

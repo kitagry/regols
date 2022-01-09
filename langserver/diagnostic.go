@@ -44,21 +44,21 @@ func (h *handler) diagnostic() {
 func (h *handler) diagnose(ctx context.Context, uri lsp.DocumentURI) (map[lsp.DocumentURI][]lsp.Diagnostic, error) {
 	result := make(map[lsp.DocumentURI][]lsp.Diagnostic)
 
-	errs := h.project.GetErrors(documentURIToURI(uri))
-	for _, e := range errs {
-		uri := uriToDocumentURI(e.Location.File)
-		result[uri] = append(result[uri], convertErrorToDiagnostic(e))
-	}
-
-	// Refresh old diagnostics.
-	for path := range h.project.GetOpenFiles() {
+	pathToErrs := h.project.GetErrors(documentURIToURI(uri))
+	for path, errs := range pathToErrs {
 		uri := uriToDocumentURI(path)
-		if _, ok := result[uri]; !ok {
-			result[uri] = make([]lsp.Diagnostic, 0)
-		}
+		result[uri] = convertErrorsToDiagnostics(errs)
 	}
 
 	return result, nil
+}
+
+func convertErrorsToDiagnostics(errs ast.Errors) []lsp.Diagnostic {
+	result := make([]lsp.Diagnostic, len(errs))
+	for i, e := range errs {
+		result[i] = convertErrorToDiagnostic(e)
+	}
+	return result
 }
 
 func convertErrorToDiagnostic(err *ast.Error) lsp.Diagnostic {

@@ -1,22 +1,22 @@
-package cache_test
+package source_test
 
 import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/kitagry/regols/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestProject_SearchTargetTerm(t *testing.T) {
 	tests := map[string]struct {
-		files      map[string]cache.File
-		updateFile map[string]cache.File
+		files      map[string]source.File
+		updateFile map[string]source.File
 		location   *ast.Location
 		expectTerm *ast.Term
 	}{
 		"search term": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -44,7 +44,7 @@ violation[msg] {
 			},
 		},
 		"search ref of library": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -55,7 +55,7 @@ violation[msg] {
 }`,
 				},
 			},
-			updateFile: map[string]cache.File{
+			updateFile: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -109,13 +109,16 @@ violation[msg] {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			project, err := cache.NewProjectWithFiles(tt.files)
+			project, err := source.NewProjectWithFiles(tt.files)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			for path, file := range tt.updateFile {
-				project.UpdateFile(path, file.RowText, file.Version)
+				err := project.UpdateFile(path, file.RowText, file.Version)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			term, err := project.SearchTargetTerm(tt.location)

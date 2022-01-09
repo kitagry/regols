@@ -1,21 +1,21 @@
-package cache_test
+package source_test
 
 import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/kitagry/regols/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestProject_ListCompletionItems(t *testing.T) {
 	tests := map[string]struct {
-		files       map[string]cache.File
+		files       map[string]source.File
 		location    *ast.Location
-		expectItems []cache.CompletionItem
+		expectItems []source.CompletionItem
 	}{
 		"list up in rule": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -33,23 +33,23 @@ violation[msg] {
 				File: "main.rego",
 				Text: []byte("m"),
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
-					Kind:  cache.VariableItem,
+					Kind:  source.VariableItem,
 				},
 				{
 					Label: "ms",
-					Kind:  cache.VariableItem,
+					Kind:  source.VariableItem,
 				},
 				{
 					Label: "message",
-					Kind:  cache.VariableItem,
+					Kind:  source.VariableItem,
 				},
 			},
 		},
 		"completion package": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -67,15 +67,15 @@ violation[msg] {
 				File: "main.rego",
 				Text: []byte("l"),
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "lib",
-					Kind:  cache.PackageItem,
+					Kind:  source.PackageItem,
 				},
 			},
 		},
 		"completion ast.Ref body": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -92,15 +92,15 @@ violation [msg] {
 				File: "main.rego",
 				Text: []byte("c"),
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "container",
-					Kind:  cache.VariableItem,
+					Kind:  source.VariableItem,
 				},
 			},
 		},
 		"completion methods": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -120,15 +120,15 @@ is_hello(msg) {
 				File: "main.rego",
 				Text: []byte("i"),
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "is_hello",
-					Kind:  cache.FunctionItem,
+					Kind:  source.FunctionItem,
 				},
 			},
 		},
 		"completion library methods": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -153,15 +153,15 @@ is_hello(msg) {
 				File: "main.rego",
 				Text: []byte("i"),
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "is_hello",
-					Kind:  cache.FunctionItem,
+					Kind:  source.FunctionItem,
 				},
 			},
 		},
 		"delete duplicate": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -178,15 +178,15 @@ violation[msg] {
 				Text: []byte("m"),
 				File: "main.rego",
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
-					Kind:  cache.VariableItem,
+					Kind:  source.VariableItem,
 				},
 			},
 		},
 		"not prefix term": {
-			files: map[string]cache.File{
+			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
 
@@ -203,14 +203,14 @@ violation[msg] {
 				Text: []byte("	"),
 				File: "main.rego",
 			},
-			expectItems: []cache.CompletionItem{
+			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
-					Kind:  cache.VariableItem,
+					Kind:  source.VariableItem,
 				},
 				{
 					Label: "violation",
-					Kind:  cache.FunctionItem,
+					Kind:  source.FunctionItem,
 				},
 			},
 		},
@@ -218,7 +218,7 @@ violation[msg] {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			project, err := cache.NewProjectWithFiles(tt.files)
+			project, err := source.NewProjectWithFiles(tt.files)
 			if err != nil {
 				t.Fatal(err)
 			}
