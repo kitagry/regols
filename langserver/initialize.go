@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/kitagry/regols/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -22,7 +22,7 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 	}
 	h.initializeParams = params
 
-	p, err := cache.NewProject(params.RootPath)
+	p, err := source.NewProject(params.RootPath)
 	if err != nil {
 		return nil, err
 	}
