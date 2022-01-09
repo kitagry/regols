@@ -24,6 +24,10 @@ func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term,
 		}
 	}
 
+	if policy.Module == nil {
+		return nil, nil
+	}
+
 	for _, r := range policy.Module.Rules {
 		if !in(location, r.Loc()) {
 			continue

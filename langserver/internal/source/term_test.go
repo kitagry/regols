@@ -105,6 +105,26 @@ violation[msg] {
 				},
 			},
 		},
+		"when parse error first, can't find term": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+import data.lib
+
+violation[msg] {
+	lib
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 6,
+				Col: 5,
+				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
+				Text: []byte("."),
+				File: "main.rego",
+			},
+		},
 	}
 
 	for n, tt := range tests {
