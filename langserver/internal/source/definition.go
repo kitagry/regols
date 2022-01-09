@@ -1,4 +1,4 @@
-package cache
+package source
 
 import (
 	"bytes"
@@ -233,7 +233,7 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 
 func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
 	searchPackageName := p.findPolicyRef(term)
-	searchPolicies := p.findPolicies(searchPackageName)
+	searchPolicies := p.cache.FindPolicies(searchPackageName)
 
 	if len(searchPolicies) == 0 {
 		return nil
@@ -293,27 +293,13 @@ func findImportOutsidePolicy(moduleName string, imports []*ast.Import) *ast.Impo
 	return nil
 }
 
-func (p *Project) findPolicies(packageName ast.Ref) []*ast.Module {
-	modules, err := p.getModules()
-	if err != nil {
-		return nil
-	}
-	result := make([]*ast.Module, 0)
-	for _, module := range modules {
-		if module.Package.Path.Equal(packageName) {
-			result = append(result, module)
-		}
-	}
-	return result
-}
-
 func in(target, src *location.Location) bool {
 	return target.Offset >= src.Offset && target.Offset <= (src.Offset+len(src.Text))
 }
 
 func (p *Project) GetRawText(path string) (string, error) {
 	if f, ok := p.GetFile(path); ok {
-		return f.RowText, nil
+		return f, nil
 	}
 
 	f, err := os.Open(path)

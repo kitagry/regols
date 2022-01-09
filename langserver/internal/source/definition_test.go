@@ -1,4 +1,4 @@
-package cache_test
+package source_test
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/kitagry/regols/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
 )
@@ -18,7 +18,7 @@ func TestLookupDefinition(t *testing.T) {
 	}
 	testDataPath := thisPath + "/testdata"
 
-	p, err := cache.NewProject(testDataPath)
+	p, err := source.NewProject(testDataPath)
 	if err != nil {
 		t.Fatalf("failed to create project: %v", err)
 	}

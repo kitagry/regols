@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/kitagry/regols/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -18,7 +18,7 @@ type handler struct {
 	diagnosticRequest chan lsp.DocumentURI
 	initializeParams  lsp.InitializeParams
 
-	project *cache.Project
+	project *source.Project
 }
 
 type document struct {

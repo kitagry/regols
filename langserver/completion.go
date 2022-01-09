@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/kitagry/regols/langserver/internal/cache"
+	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -29,7 +29,7 @@ func (h *handler) handleTextDocumentCompletion(ctx context.Context, conn *jsonrp
 	return completionItemToLspCompletionList(items), nil
 }
 
-func completionItemToLspCompletionList(items []cache.CompletionItem) lsp.CompletionList {
+func completionItemToLspCompletionList(items []source.CompletionItem) lsp.CompletionList {
 	completoinItems := make([]lsp.CompletionItem, len(items))
 	for i, c := range items {
 		completoinItems[i] = lsp.CompletionItem{
@@ -44,13 +44,13 @@ func completionItemToLspCompletionList(items []cache.CompletionItem) lsp.Complet
 	}
 }
 
-func kindToLspKind(kind cache.CompletionKind) lsp.CompletionItemKind {
+func kindToLspKind(kind source.CompletionKind) lsp.CompletionItemKind {
 	switch kind {
-	case cache.VariableItem:
+	case source.VariableItem:
 		return lsp.CIKVariable
-	case cache.PackageItem:
+	case source.PackageItem:
 		return lsp.CIKModule
-	case cache.FunctionItem:
+	case source.FunctionItem:
 		return lsp.CIKFunction
 	default:
 		return lsp.CIKText
