@@ -3,7 +3,6 @@ package source_test
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -228,9 +227,20 @@ violation[msg] {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(tt.expectItems, got); diff != "" {
-				t.Errorf("LookupDefinition result diff (-expect +got):\n%s", diff)
+			for _, e := range tt.expectItems {
+				if !in(e, got) {
+					t.Errorf("LookupDefinition should return item %v, got %v", e, got)
+				}
 			}
 		})
 	}
+}
+
+func in(item source.CompletionItem, list []source.CompletionItem) bool {
+	for _, l := range list {
+		if item == l {
+			return true
+		}
+	}
+	return false
 }

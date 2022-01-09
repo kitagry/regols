@@ -7,8 +7,9 @@ import (
 )
 
 type CompletionItem struct {
-	Label string
-	Kind  CompletionKind
+	Label  string
+	Kind   CompletionKind
+	Detail string
 }
 
 type CompletionKind int
@@ -18,6 +19,7 @@ const (
 	VariableItem
 	PackageItem
 	FunctionItem
+	BuiltinFunctionItem
 )
 
 func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem, error) {
@@ -92,6 +94,17 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 				})
 			}
 		}
+	}
+
+	for _, b := range ast.DefaultBuiltins {
+		if b.Infix != "" {
+			continue
+		}
+		result = append(result, CompletionItem{
+			Label:  b.Name,
+			Kind:   BuiltinFunctionItem,
+			Detail: b.Decl.String(),
+		})
 	}
 
 	return result
