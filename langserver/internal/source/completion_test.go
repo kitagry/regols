@@ -213,6 +213,56 @@ violation[msg] {
 				},
 			},
 		},
+		"built-in completion": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+violation[msg] {
+	j
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 2,
+				Offset: len("package main\n\nviolation[msg] {\n	j"),
+				Text: []byte("j"),
+				File: "main.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:  "json.patch",
+					Kind:   source.BuiltinFunctionItem,
+					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+				},
+			},
+		},
+		"built-in completion with prefix": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+violation[msg] {
+	json.p
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 7,
+				Offset: len("package main\n\nviolation[msg] {\n	json.p"),
+				Text: []byte("p"),
+				File: "main.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:  "patch",
+					Kind:   source.BuiltinFunctionItem,
+					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
