@@ -2,7 +2,6 @@ package cache
 
 import (
 	"bytes"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -98,18 +97,23 @@ func (g *GlobalCache) putWithPath(path string) error {
 func (g *GlobalCache) Put(path string, rawText string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	policy := Policy{
-		RawText: rawText,
+
+	policy, ok := g.pathToPlicies[path]
+	if !ok {
+		policy = &Policy{}
 	}
+	policy.RawText = rawText
 	module, err := ast.ParseModule(path, rawText)
 	if errs, ok := err.(ast.Errors); ok {
 		policy.Errs = errs
+		g.pathToPlicies[path] = policy
+		return nil
 	} else if err != nil {
 		return err
-	} else {
-		policy.Module = module
 	}
-	g.pathToPlicies[path] = &policy
+	policy.Module = module
+	policy.Errs = nil
+	g.pathToPlicies[path] = policy
 	return nil
 }
 
@@ -135,7 +139,6 @@ func (g *GlobalCache) FindPolicies(packageName ast.Ref) []*ast.Module {
 func (g *GlobalCache) GetErrors(path string) map[string]ast.Errors {
 	// parse error
 	if p := g.Get(path); p != nil && len(p.Errs) != 0 {
-		fmt.Fprintf(os.Stderr, "%+v\n", p.Errs)
 		return map[string]ast.Errors{path: p.Errs}
 	}
 

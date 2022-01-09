@@ -1,9 +1,6 @@
 package source
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/kitagry/regols/langserver/internal/cache"
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -54,7 +51,6 @@ func (p *Project) UpdateFile(path string, text string, version int) error {
 
 func (p *Project) GetErrors(path string) map[string]ast.Errors {
 	errs := p.cache.GetErrors(path)
-	fmt.Fprintf(os.Stderr, "GetErrors: %+v\n", errs)
 	return errs
 }
 
