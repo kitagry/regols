@@ -60,39 +60,39 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 		return nil
 	}
 
-	for _, i := range module.Imports {
-		result = append(result, CompletionItem{
-			Label: importToLabel(i),
-			Kind:  PackageItem,
-		})
+	if !p.isLibraryTerm(target) {
+		for _, i := range module.Imports {
+			result = append(result, CompletionItem{
+				Label: importToLabel(i),
+				Kind:  PackageItem,
+			})
+		}
+
+		rule := p.findRuleForTerm(location)
+		if rule != nil {
+			list := p.listCompletionItemsInRule(location, rule)
+			result = append(result, list...)
+		}
+
+		for _, r := range module.Rules {
+			result = append(result, CompletionItem{
+				Label: r.Head.Name.String(),
+				Kind:  FunctionItem,
+			})
+		}
 	}
 
-	rule := p.findRuleForTerm(location)
-	if rule != nil {
-		list := p.listCompletionItemsInRule(location, rule)
-		result = append(result, list...)
-	}
-
-	for _, r := range module.Rules {
-		result = append(result, CompletionItem{
-			Label: r.Head.Name.String(),
-			Kind:  FunctionItem,
-		})
-	}
-
-	if target == nil {
-		return result
-	}
-
-	if _, ok := target.Value.(ast.Ref); ok {
-		importRef := p.findPolicyRef(target)
-		policies := p.cache.FindPolicies(importRef)
-		for _, p := range policies {
-			for _, r := range p.Rules {
-				result = append(result, CompletionItem{
-					Label: r.Head.Name.String(),
-					Kind:  FunctionItem,
-				})
+	if p.isLibraryTerm(target) {
+		if _, ok := target.Value.(ast.Ref); ok {
+			importRef := p.findPolicyRef(target)
+			policies := p.cache.FindPolicies(importRef)
+			for _, p := range policies {
+				for _, r := range p.Rules {
+					result = append(result, CompletionItem{
+						Label: r.Head.Name.String(),
+						Kind:  FunctionItem,
+					})
+				}
 			}
 		}
 	}
@@ -100,6 +100,16 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 	result = append(result, p.listBuiltinFunction(target)...)
 
 	return result
+}
+
+// When target is "lib." return true, else return false
+func (p *Project) isLibraryTerm(target *ast.Term) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.Value.(ast.Ref)
+	return ok
 }
 
 func (p *Project) listCompletionItemsInRule(loc *ast.Location, rule *ast.Rule) []CompletionItem {
