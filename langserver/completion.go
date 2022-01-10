@@ -3,6 +3,8 @@ package langserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
@@ -26,24 +28,46 @@ func (h *handler) handleTextDocumentCompletion(ctx context.Context, conn *jsonrp
 		return nil, err
 	}
 
-	return completionItemToLspCompletionList(items), nil
+	return completionItemToLspCompletionList(items, h.clientSupportSnippets()), nil
 }
 
-func completionItemToLspCompletionList(items []source.CompletionItem) lsp.CompletionList {
+func (h *handler) clientSupportSnippets() bool {
+	return h.initializeParams.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport
+}
+
+func completionItemToLspCompletionList(items []source.CompletionItem, isSnippetSupport bool) lsp.CompletionList {
+	insertTextFormat := lsp.ITFPlainText
+	if isSnippetSupport {
+		insertTextFormat = lsp.ITFSnippet
+	}
+
 	completoinItems := make([]lsp.CompletionItem, len(items))
 	for i, c := range items {
-		completoinItems[i] = lsp.CompletionItem{
-			Label:            c.Label,
-			Kind:             kindToLspKind(c.Kind),
-			Detail:           c.Detail,
-			InsertText:       c.InsertText,
-			InsertTextFormat: lsp.ITFSnippet,
-		}
+		completoinItems[i] = createCompletionItem(c, insertTextFormat)
 	}
 
 	return lsp.CompletionList{
 		IsIncomplete: false,
 		Items:        completoinItems,
+	}
+}
+
+func createCompletionItem(completionItem source.CompletionItem, insertTextFormat lsp.InsertTextFormat) lsp.CompletionItem {
+	if insertTextFormat == lsp.ITFPlainText {
+		return lsp.CompletionItem{
+			Label:            completionItem.Label,
+			Kind:             kindToLspKind(completionItem.Kind),
+			Detail:           completionItem.Detail,
+			InsertTextFormat: insertTextFormat,
+		}
+	}
+
+	return lsp.CompletionItem{
+		Label:            completionItem.Label,
+		Kind:             kindToLspKind(completionItem.Kind),
+		Detail:           completionItem.Detail,
+		InsertText:       createSnippetText(completionItem.InsertText, completionItem.Kind),
+		InsertTextFormat: insertTextFormat,
 	}
 }
 
@@ -57,5 +81,41 @@ func kindToLspKind(kind source.CompletionKind) lsp.CompletionItemKind {
 		return lsp.CIKFunction
 	default:
 		return lsp.CIKText
+	}
+}
+
+func createSnippetText(insertText string, kind source.CompletionKind) string {
+	switch kind {
+	case source.FunctionItem, source.BuiltinFunctionItem:
+		if i := strings.Index(insertText, "("); i >= 0 {
+			trimmed := insertText[:i]
+			argStr := strings.Trim(insertText[i:], "()")
+			if len(argStr) == 0 {
+				return trimmed + "()"
+			}
+			args := strings.Split(argStr, ", ")
+			snippetArgs := make([]string, len(args))
+			for i, a := range args {
+				snippetArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+			}
+			return trimmed + "(" + strings.Join(snippetArgs, ", ") + ")"
+		}
+
+		if i := strings.Index(insertText, "["); i >= 0 {
+			trimmed := insertText[:i]
+			argStr := strings.Trim(insertText[i:], "[]")
+			if len(argStr) == 0 {
+				return trimmed + "[]"
+			}
+			args := strings.Split(argStr, ", ")
+			snippetArgs := make([]string, len(args))
+			for i, a := range args {
+				snippetArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+			}
+			return trimmed + "[" + strings.Join(snippetArgs, ", ") + "]"
+		}
+		return insertText
+	default:
+		return insertText
 	}
 }

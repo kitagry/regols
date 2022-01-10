@@ -123,7 +123,7 @@ is_hello(msg) {
 				{
 					Label:      "is_hello",
 					Kind:       source.FunctionItem,
-					InsertText: "is_hello(${1:msg})",
+					InsertText: "is_hello(msg)",
 				},
 			},
 		},
@@ -157,7 +157,7 @@ is_hello(msg) {
 				{
 					Label:      "is_hello",
 					Kind:       source.FunctionItem,
-					InsertText: "is_hello(${1:msg})",
+					InsertText: "is_hello(msg)",
 				},
 			},
 		},
@@ -212,7 +212,7 @@ violation[msg] {
 				{
 					Label:      "violation",
 					Kind:       source.FunctionItem,
-					InsertText: "violation[${1:msg}]",
+					InsertText: "violation[msg]",
 				},
 			},
 		},

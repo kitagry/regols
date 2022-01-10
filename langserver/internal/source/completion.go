@@ -256,14 +256,14 @@ func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 	if len(rule.Head.Args) != 0 {
 		args := make([]string, len(rule.Head.Args))
 		for i, arg := range head.Args {
-			args[i] = fmt.Sprintf("${%d:%s}", i+1, arg.String())
+			args[i] = arg.String()
 		}
 		insertText.WriteByte('(')
 		insertText.WriteString(strings.Join(args, ", "))
 		insertText.WriteByte(')')
 	} else if head.Key != nil {
 		insertText.WriteByte('[')
-		insertText.WriteString(fmt.Sprintf("${%d:%s}", 1, head.Key.String()))
+		insertText.WriteString(head.Key.String())
 		insertText.WriteByte(']')
 	}
 
