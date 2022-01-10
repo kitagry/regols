@@ -33,9 +33,11 @@ func completionItemToLspCompletionList(items []source.CompletionItem) lsp.Comple
 	completoinItems := make([]lsp.CompletionItem, len(items))
 	for i, c := range items {
 		completoinItems[i] = lsp.CompletionItem{
-			Label:  c.Label,
-			Kind:   kindToLspKind(c.Kind),
-			Detail: c.Detail,
+			Label:            c.Label,
+			Kind:             kindToLspKind(c.Kind),
+			Detail:           c.Detail,
+			InsertText:       c.InsertText,
+			InsertTextFormat: lsp.ITFSnippet,
 		}
 	}
 

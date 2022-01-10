@@ -121,8 +121,9 @@ is_hello(msg) {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label: "is_hello",
-					Kind:  source.FunctionItem,
+					Label:      "is_hello",
+					Kind:       source.FunctionItem,
+					InsertText: "is_hello(${1:msg})",
 				},
 			},
 		},
@@ -154,8 +155,9 @@ is_hello(msg) {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label: "is_hello",
-					Kind:  source.FunctionItem,
+					Label:      "is_hello",
+					Kind:       source.FunctionItem,
+					InsertText: "is_hello(${1:msg})",
 				},
 			},
 		},
@@ -208,8 +210,9 @@ violation[msg] {
 					Kind:  source.VariableItem,
 				},
 				{
-					Label: "violation",
-					Kind:  source.FunctionItem,
+					Label:      "violation",
+					Kind:       source.FunctionItem,
+					InsertText: "violation[${1:msg}]",
 				},
 			},
 		},

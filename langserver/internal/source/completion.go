@@ -8,9 +8,10 @@ import (
 )
 
 type CompletionItem struct {
-	Label  string
-	Kind   CompletionKind
-	Detail string
+	Label      string
+	Kind       CompletionKind
+	Detail     string
+	InsertText string
 }
 
 type CompletionKind int
@@ -75,10 +76,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 		}
 
 		for _, r := range module.Rules {
-			result = append(result, CompletionItem{
-				Label: r.Head.Name.String(),
-				Kind:  FunctionItem,
-			})
+			result = append(result, createRuleCompletionItem(r))
 		}
 	}
 
@@ -88,10 +86,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 			policies := p.cache.FindPolicies(importRef)
 			for _, p := range policies {
 				for _, r := range p.Rules {
-					result = append(result, CompletionItem{
-						Label: r.Head.Name.String(),
-						Kind:  FunctionItem,
-					})
+					result = append(result, createRuleCompletionItem(r))
 				}
 			}
 		}
@@ -251,5 +246,30 @@ func getTermPrefix(target *ast.Term) string {
 		return ""
 	default:
 		return target.String()
+	}
+}
+
+func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
+	head := rule.Head
+	var insertText strings.Builder
+	insertText.WriteString(head.Name.String())
+	if len(rule.Head.Args) != 0 {
+		args := make([]string, len(rule.Head.Args))
+		for i, arg := range head.Args {
+			args[i] = fmt.Sprintf("${%d:%s}", i+1, arg.String())
+		}
+		insertText.WriteByte('(')
+		insertText.WriteString(strings.Join(args, ", "))
+		insertText.WriteByte(')')
+	} else if head.Key != nil {
+		insertText.WriteByte('[')
+		insertText.WriteString(fmt.Sprintf("${%d:%s}", 1, head.Key.String()))
+		insertText.WriteByte(']')
+	}
+
+	return CompletionItem{
+		Label:      rule.Head.Name.String(),
+		Kind:       FunctionItem,
+		InsertText: insertText.String(),
 	}
 }
