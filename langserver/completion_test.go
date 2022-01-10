@@ -35,6 +35,12 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 					Detail:     "detail",
 					InsertText: "mes[a]",
 				},
+				{
+					Label:      "json.patch",
+					Kind:       source.BuiltinFunctionItem,
+					Detail:     "(any, array[object<op: string, path: any>[any: any]]) => any",
+					InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]] => any)",
+				},
 			},
 			isSnippetSupport: true,
 			expectCompletionList: lsp.CompletionList{
@@ -60,6 +66,13 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 						Detail:           "detail",
 						InsertTextFormat: lsp.ITFSnippet,
 						InsertText:       "mes[${1:a}]",
+					},
+					{
+						Label:            "json.patch",
+						Kind:             lsp.CIKFunction,
+						Detail:           "(any, array[object<op: string, path: any>[any: any]]) => any",
+						InsertTextFormat: lsp.ITFSnippet,
+						InsertText:       "json.patch(${1:any}, ${2:array[object<op: string, path: any>[any: any]] => any})",
 					},
 				},
 			},

@@ -235,9 +235,10 @@ violation[msg] {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label:  "json.patch",
-					Kind:   source.BuiltinFunctionItem,
-					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+					Label:      "json.patch",
+					Kind:       source.BuiltinFunctionItem,
+					Detail:     "(any, array[object<op: string, path: any>[any: any]]) => any",
+					InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]])",
 				},
 			},
 		},
@@ -260,9 +261,10 @@ violation[msg] {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label:  "patch",
-					Kind:   source.BuiltinFunctionItem,
-					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+					Label:      "patch",
+					Kind:       source.BuiltinFunctionItem,
+					Detail:     "(any, array[object<op: string, path: any>[any: any]]) => any",
+					InsertText: "patch(any, array[object<op: string, path: any>[any: any]])",
 				},
 			},
 		},

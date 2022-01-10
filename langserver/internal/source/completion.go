@@ -8,10 +8,16 @@ import (
 )
 
 type CompletionItem struct {
-	Label      string
-	Kind       CompletionKind
-	Detail     string
-	InsertText string
+	Label        string
+	Kind         CompletionKind
+	Detail       string
+	InsertText   string
+	FunctionHead *FunctionHead
+}
+
+type FunctionHead struct {
+	Args  []string
+	Value *string
 }
 
 type CompletionKind int
@@ -183,9 +189,10 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 				continue
 			}
 			result = append(result, CompletionItem{
-				Label:  b.Name,
-				Kind:   BuiltinFunctionItem,
-				Detail: b.Decl.String(),
+				Label:      b.Name,
+				Kind:       BuiltinFunctionItem,
+				Detail:     b.Decl.String(),
+				InsertText: fmt.Sprintf("%s%s", b.Name, b.Decl.FuncArgs().String()),
 			})
 		}
 		return result
@@ -197,10 +204,12 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 			continue
 		}
 		if strings.HasPrefix(b.Name, fmt.Sprintf("%s.", val.Value.String())) {
+			name := strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String()))
 			result = append(result, CompletionItem{
-				Label:  strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String())),
-				Kind:   BuiltinFunctionItem,
-				Detail: b.Decl.String(),
+				Label:      name,
+				Kind:       BuiltinFunctionItem,
+				Detail:     b.Decl.String(),
+				InsertText: fmt.Sprintf("%s%s", name, b.Decl.FuncArgs().String()),
 			})
 		}
 	}

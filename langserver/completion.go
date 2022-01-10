@@ -107,7 +107,39 @@ func addFunctionSnippet(insertText string, lbracket string, rbracket string) str
 		if len(argStr) == 0 {
 			return trimmed + lbracket + rbracket
 		}
-		args := strings.Split(argStr, ", ")
+
+		args := make([]string, 0)
+		startInd := 0
+		brackets := make([]byte, 0)
+		for i, b := range argStr {
+			switch b {
+			case ',':
+				if len(brackets) == 0 {
+					args = append(args, strings.TrimSpace(argStr[startInd:i]))
+					startInd = i + 1
+				}
+			case '(':
+				brackets = append(brackets, '(')
+			case '[':
+				brackets = append(brackets, '[')
+			case '<':
+				brackets = append(brackets, '<')
+			case ')':
+				if len(brackets) > 0 && brackets[len(brackets)-1] == '(' {
+					brackets = brackets[0 : len(brackets)-1]
+				}
+			case ']':
+				if len(brackets) > 0 && brackets[len(brackets)-1] == '[' {
+					brackets = brackets[0 : len(brackets)-1]
+				}
+			case '>':
+				if len(brackets) > 0 && brackets[len(brackets)-1] == '<' {
+					brackets = brackets[0 : len(brackets)-1]
+				}
+			}
+		}
+		args = append(args, strings.TrimSpace(argStr[startInd:]))
+
 		snippetArgs := make([]string, len(args))
 		for i, a := range args {
 			snippetArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
