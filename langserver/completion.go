@@ -88,34 +88,31 @@ func createSnippetText(insertText string, kind source.CompletionKind) string {
 	switch kind {
 	case source.FunctionItem, source.BuiltinFunctionItem:
 		if i := strings.Index(insertText, "("); i >= 0 {
-			trimmed := insertText[:i]
-			argStr := strings.Trim(insertText[i:], "()")
-			if len(argStr) == 0 {
-				return trimmed + "()"
-			}
-			args := strings.Split(argStr, ", ")
-			snippetArgs := make([]string, len(args))
-			for i, a := range args {
-				snippetArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
-			}
-			return trimmed + "(" + strings.Join(snippetArgs, ", ") + ")"
+			return addFunctionSnippet(insertText, "(", ")")
 		}
 
 		if i := strings.Index(insertText, "["); i >= 0 {
-			trimmed := insertText[:i]
-			argStr := strings.Trim(insertText[i:], "[]")
-			if len(argStr) == 0 {
-				return trimmed + "[]"
-			}
-			args := strings.Split(argStr, ", ")
-			snippetArgs := make([]string, len(args))
-			for i, a := range args {
-				snippetArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
-			}
-			return trimmed + "[" + strings.Join(snippetArgs, ", ") + "]"
+			return addFunctionSnippet(insertText, "[", "]")
 		}
 		return insertText
 	default:
 		return insertText
 	}
+}
+
+func addFunctionSnippet(insertText string, lbracket string, rbracket string) string {
+	if i := strings.Index(insertText, lbracket); i >= 0 {
+		trimmed := insertText[:i]
+		argStr := strings.Trim(insertText[i:], lbracket+rbracket)
+		if len(argStr) == 0 {
+			return trimmed + lbracket + rbracket
+		}
+		args := strings.Split(argStr, ", ")
+		snippetArgs := make([]string, len(args))
+		for i, a := range args {
+			snippetArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+		}
+		return trimmed + lbracket + strings.Join(snippetArgs, ", ") + rbracket
+	}
+	return insertText
 }
