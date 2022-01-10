@@ -110,7 +110,8 @@ func addFunctionSnippet(insertText string, lbracket string, rbracket string) str
 
 		args := make([]string, 0)
 		startInd := 0
-		brackets := make([]byte, 0)
+		brackets := make([]rune, 0)
+		branketsPair := map[rune]rune{'(': ')', '[': ']', '<': '>'}
 		for i, b := range argStr {
 			switch b {
 			case ',':
@@ -118,22 +119,10 @@ func addFunctionSnippet(insertText string, lbracket string, rbracket string) str
 					args = append(args, strings.TrimSpace(argStr[startInd:i]))
 					startInd = i + 1
 				}
-			case '(':
-				brackets = append(brackets, '(')
-			case '[':
-				brackets = append(brackets, '[')
-			case '<':
-				brackets = append(brackets, '<')
-			case ')':
-				if len(brackets) > 0 && brackets[len(brackets)-1] == '(' {
-					brackets = brackets[0 : len(brackets)-1]
-				}
-			case ']':
-				if len(brackets) > 0 && brackets[len(brackets)-1] == '[' {
-					brackets = brackets[0 : len(brackets)-1]
-				}
-			case '>':
-				if len(brackets) > 0 && brackets[len(brackets)-1] == '<' {
+			case '(', '[', '<':
+				brackets = append(brackets, branketsPair[b])
+			case ')', ']', '>':
+				if len(brackets) > 0 && brackets[len(brackets)-1] == b {
 					brackets = brackets[0 : len(brackets)-1]
 				}
 			}

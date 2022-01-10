@@ -237,7 +237,7 @@ violation[msg] {
 				{
 					Label:      "json.patch",
 					Kind:       source.BuiltinFunctionItem,
-					Detail:     "(any, array[object<op: string, path: any>[any: any]]) => any",
+					Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
 					InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]])",
 				},
 			},
@@ -263,7 +263,7 @@ violation[msg] {
 				{
 					Label:      "patch",
 					Kind:       source.BuiltinFunctionItem,
-					Detail:     "(any, array[object<op: string, path: any>[any: any]]) => any",
+					Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
 					InsertText: "patch(any, array[object<op: string, path: any>[any: any]])",
 				},
 			},
