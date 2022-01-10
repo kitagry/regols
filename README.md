@@ -7,4 +7,4 @@ OPA rego language server
 - [x] textDocument/publishDiagnostics
 - [x] textDocument/formatting
 - [x] textDocument/definition
-- [ ] textDocument/completion
+- [x] textDocument/completion

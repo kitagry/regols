@@ -8,9 +8,16 @@ import (
 )
 
 type CompletionItem struct {
-	Label  string
-	Kind   CompletionKind
-	Detail string
+	Label        string
+	Kind         CompletionKind
+	Detail       string
+	InsertText   string
+	FunctionHead *FunctionHead
+}
+
+type FunctionHead struct {
+	Args  []string
+	Value *string
 }
 
 type CompletionKind int
@@ -21,6 +28,12 @@ const (
 	PackageItem
 	FunctionItem
 	BuiltinFunctionItem
+)
+
+const (
+	BuiltinDetail = `built-in function
+
+See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions`
 )
 
 func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem, error) {
@@ -75,10 +88,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 		}
 
 		for _, r := range module.Rules {
-			result = append(result, CompletionItem{
-				Label: r.Head.Name.String(),
-				Kind:  FunctionItem,
-			})
+			result = append(result, createRuleCompletionItem(r))
 		}
 	}
 
@@ -88,10 +98,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 			policies := p.cache.FindPolicies(importRef)
 			for _, p := range policies {
 				for _, r := range p.Rules {
-					result = append(result, CompletionItem{
-						Label: r.Head.Name.String(),
-						Kind:  FunctionItem,
-					})
+					result = append(result, createRuleCompletionItem(r))
 				}
 			}
 		}
@@ -188,9 +195,12 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 				continue
 			}
 			result = append(result, CompletionItem{
-				Label:  b.Name,
-				Kind:   BuiltinFunctionItem,
-				Detail: b.Decl.String(),
+				Label: b.Name,
+				Kind:  BuiltinFunctionItem,
+				Detail: fmt.Sprintf(`%s%s
+
+%s`, b.Name, b.Decl.FuncArgs().String(), BuiltinDetail),
+				InsertText: fmt.Sprintf("%s%s", b.Name, b.Decl.FuncArgs().String()),
 			})
 		}
 		return result
@@ -202,10 +212,14 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 			continue
 		}
 		if strings.HasPrefix(b.Name, fmt.Sprintf("%s.", val.Value.String())) {
+			name := strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String()))
 			result = append(result, CompletionItem{
-				Label:  strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String())),
-				Kind:   BuiltinFunctionItem,
-				Detail: b.Decl.String(),
+				Label: name,
+				Kind:  BuiltinFunctionItem,
+				Detail: fmt.Sprintf(`%s%s
+
+%s`, b.Name, b.Decl.FuncArgs().String(), BuiltinDetail),
+				InsertText: fmt.Sprintf("%s%s", name, b.Decl.FuncArgs().String()),
 			})
 		}
 	}
@@ -251,5 +265,30 @@ func getTermPrefix(target *ast.Term) string {
 		return ""
 	default:
 		return target.String()
+	}
+}
+
+func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
+	head := rule.Head
+	var insertText strings.Builder
+	insertText.WriteString(head.Name.String())
+	if len(rule.Head.Args) != 0 {
+		args := make([]string, len(rule.Head.Args))
+		for i, arg := range head.Args {
+			args[i] = arg.String()
+		}
+		insertText.WriteByte('(')
+		insertText.WriteString(strings.Join(args, ", "))
+		insertText.WriteByte(')')
+	} else if head.Key != nil {
+		insertText.WriteByte('[')
+		insertText.WriteString(head.Key.String())
+		insertText.WriteByte(']')
+	}
+
+	return CompletionItem{
+		Label:      rule.Head.Name.String(),
+		Kind:       FunctionItem,
+		InsertText: insertText.String(),
 	}
 }

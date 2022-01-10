@@ -121,8 +121,9 @@ is_hello(msg) {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label: "is_hello",
-					Kind:  source.FunctionItem,
+					Label:      "is_hello",
+					Kind:       source.FunctionItem,
+					InsertText: "is_hello(msg)",
 				},
 			},
 		},
@@ -154,8 +155,9 @@ is_hello(msg) {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label: "is_hello",
-					Kind:  source.FunctionItem,
+					Label:      "is_hello",
+					Kind:       source.FunctionItem,
+					InsertText: "is_hello(msg)",
 				},
 			},
 		},
@@ -208,8 +210,9 @@ violation[msg] {
 					Kind:  source.VariableItem,
 				},
 				{
-					Label: "violation",
-					Kind:  source.FunctionItem,
+					Label:      "violation",
+					Kind:       source.FunctionItem,
+					InsertText: "violation[msg]",
 				},
 			},
 		},
@@ -232,9 +235,10 @@ violation[msg] {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label:  "json.patch",
-					Kind:   source.BuiltinFunctionItem,
-					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+					Label:      "json.patch",
+					Kind:       source.BuiltinFunctionItem,
+					Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
+					InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]])",
 				},
 			},
 		},
@@ -257,9 +261,10 @@ violation[msg] {
 			},
 			expectItems: []source.CompletionItem{
 				{
-					Label:  "patch",
-					Kind:   source.BuiltinFunctionItem,
-					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+					Label:      "patch",
+					Kind:       source.BuiltinFunctionItem,
+					Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
+					InsertText: "patch(any, array[object<op: string, path: any>[any: any]])",
 				},
 			},
 		},
