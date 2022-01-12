@@ -15,6 +15,10 @@ func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term,
 	// lib.
 	// ```
 	policy := p.cache.Get(location.File)
+	if policy == nil {
+		return nil, nil
+	}
+
 	var isParseErrLocation bool
 	for _, err := range policy.Errs {
 		if err.Code == ast.ParseErr && err.Location.Offset == location.Offset {

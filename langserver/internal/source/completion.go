@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -52,17 +53,52 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 }
 
 func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.Term) []CompletionItem {
-	module := p.GetModule(location.File)
-	if module == nil {
+	policy := p.cache.Get(location.File)
+	if policy == nil {
 		return nil
 	}
 
-	for _, r := range module.Rules {
+	if len(policy.Errs) > 0 {
+		if policy.Errs[0].Code == ast.ParseErr && (policy.Errs[0].Message == "empty module" || policy.Errs[0].Message == "package expected") {
+			return p.listPackageCompletionItems(location)
+		}
+	}
+
+	if policy.Module == nil {
+		return nil
+	}
+
+	for _, r := range policy.Module.Rules {
 		if in(location, r.Loc()) {
 			return p.listCompletionItemsForTerms(location, target)
 		}
 	}
 	return nil
+}
+
+func (p *Project) listPackageCompletionItems(location *ast.Location) []CompletionItem {
+	result := make([]CompletionItem, 0)
+
+	file := path.Base(location.File)
+	if ind := strings.LastIndex(file, ".rego"); ind > 0 {
+		result = append(result, CompletionItem{
+			Label:      fmt.Sprintf("package %s", file[:ind]),
+			Kind:       PackageItem,
+			InsertText: fmt.Sprintf("package %s", file[:ind]),
+		})
+	}
+
+	dir := path.Dir(location.File)
+	if dir != "." {
+		ind := strings.LastIndex(dir, "/")
+		result = append(result, CompletionItem{
+			Label:      fmt.Sprintf("package %s", dir[ind+1:]),
+			Kind:       PackageItem,
+			InsertText: fmt.Sprintf("package %s", dir[ind+1:]),
+		})
+	}
+
+	return result
 }
 
 func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *ast.Term) []CompletionItem {
