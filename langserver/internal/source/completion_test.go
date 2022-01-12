@@ -268,6 +268,58 @@ violation[msg] {
 				},
 			},
 		},
+		"completion empty package": {
+			files: map[string]source.File{
+				"test/core.rego": {
+					RowText: ``,
+				},
+			},
+			location: &ast.Location{
+				Row:    1,
+				Col:    1,
+				Offset: 0,
+				Text:   nil,
+				File:   "test/core.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "package core",
+					Kind:       source.PackageItem,
+					InsertText: "package core",
+				},
+				{
+					Label:      "package test",
+					Kind:       source.PackageItem,
+					InsertText: "package test",
+				},
+			},
+		},
+		"completion no package": {
+			files: map[string]source.File{
+				"test/core.rego": {
+					RowText: `p`,
+				},
+			},
+			location: &ast.Location{
+				Row:    1,
+				Col:    1,
+				Offset: 1,
+				Text:   []byte("p"),
+				File:   "test/core.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "package core",
+					Kind:       source.PackageItem,
+					InsertText: "package core",
+				},
+				{
+					Label:      "package test",
+					Kind:       source.PackageItem,
+					InsertText: "package test",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

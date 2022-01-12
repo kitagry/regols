@@ -108,6 +108,10 @@ func (g *GlobalCache) Put(path string, rawText string) error {
 		policy.Errs = errs
 		g.pathToPlicies[path] = policy
 		return nil
+	} else if errs, ok := err.(*ast.Error); ok {
+		policy.Errs = ast.Errors{errs}
+		g.pathToPlicies[path] = policy
+		return nil
 	} else if err != nil {
 		return err
 	}
