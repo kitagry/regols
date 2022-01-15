@@ -125,6 +125,36 @@ violation[msg] {
 				File: "main.rego",
 			},
 		},
+		"library term is itself": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+import data.lib
+
+violation[msg] {
+	lib.method()
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 6,
+				Col: 2,
+				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+				Text: []byte("l"),
+				File: "main.rego",
+			},
+			expectTerm: &ast.Term{
+				Location: &ast.Location{
+					Row: 6,
+					Col: 2,
+					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+					Text: []byte("lib"),
+					File: "main.rego",
+				},
+				Value: ast.Var("lib"),
+			},
+		},
 	}
 
 	for n, tt := range tests {

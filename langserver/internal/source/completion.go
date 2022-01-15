@@ -44,7 +44,6 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 	}
 
 	// list candidates
-	fmt.Println(term)
 	list := p.listCompletionCandidates(location, term)
 
 	// filter items

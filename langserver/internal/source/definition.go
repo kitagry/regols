@@ -30,6 +30,21 @@ func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
 			return []*ast.Location{target.Loc()}
 		}
 	}
+	if val, ok := term.Value.(ast.Var); ok {
+		module := p.GetModule(term.Loc().File)
+		for _, imp := range module.Imports {
+			if imp.Alias != "" && val.Equal(imp.Alias) {
+				return []*ast.Location{imp.Path.Location}
+			}
+
+			if imp.Alias == "" {
+				ref, ok := imp.Path.Value.(ast.Ref)
+				if ok && val.String() == string(ref[len(ref)-1].Value.(ast.String)) {
+					return []*ast.Location{ref[len(ref)-1].Loc()}
+				}
+			}
+		}
+	}
 	return p.findDefinitionInModule(term, path)
 }
 

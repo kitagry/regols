@@ -97,6 +97,9 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term)
 	case ast.Call:
 		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
 	case ast.Ref:
+		if len(v) > 0 && in(loc, v[0].Loc()) {
+			return v[0], nil
+		}
 		for i, t := range v {
 			if in(loc, t.Loc()) {
 				value := v[:i+1]

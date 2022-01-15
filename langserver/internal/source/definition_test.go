@@ -145,6 +145,36 @@ method(msg) {
 				},
 			},
 		},
+		"jump to import": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+import data.lib
+
+violation[msg] {
+	lib.method("hello")
+	msg := "hello"
+}`,
+				},
+			},
+			location: &location.Location{
+				Row: 6,
+				Col: 2,
+				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+				Text: []byte("l"),
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    13,
+					Offset: len("package main\n\nimport data.l"),
+					Text:   []byte("lib"),
+					File:   "src.rego",
+				},
+			},
+		},
 		"no definition because itself is definition": {
 			files: map[string]source.File{
 				"src.rego": {
