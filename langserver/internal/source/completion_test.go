@@ -292,6 +292,11 @@ violation[msg] {
 					Kind:       source.PackageItem,
 					InsertText: "package test",
 				},
+				{
+					Label:      "package test.core",
+					Kind:       source.PackageItem,
+					InsertText: "package test.core",
+				},
 			},
 		},
 		"completion no package": {
@@ -317,6 +322,32 @@ violation[msg] {
 					Label:      "package test",
 					Kind:       source.PackageItem,
 					InsertText: "package test",
+				},
+			},
+		},
+		"completion test package": {
+			files: map[string]source.File{
+				"aaa/bbb_test.rego": {
+					RowText: `p`,
+				},
+			},
+			location: &ast.Location{
+				Row:    1,
+				Col:    1,
+				Offset: 1,
+				Text:   []byte("p"),
+				File:   "aaa/bbb_test.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "package aaa",
+					Kind:       source.PackageItem,
+					InsertText: "package aaa",
+				},
+				{
+					Label:      "package bbb",
+					Kind:       source.PackageItem,
+					InsertText: "package bbb",
 				},
 			},
 		},

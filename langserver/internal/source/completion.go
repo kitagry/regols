@@ -77,25 +77,43 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 }
 
 func (p *Project) listPackageCompletionItems(location *ast.Location) []CompletionItem {
-	result := make([]CompletionItem, 0)
-
+	fileNames := make([]string, 0)
 	file := path.Base(location.File)
 	if ind := strings.LastIndex(file, ".rego"); ind > 0 {
-		result = append(result, CompletionItem{
-			Label:      fmt.Sprintf("package %s", file[:ind]),
-			Kind:       PackageItem,
-			InsertText: fmt.Sprintf("package %s", file[:ind]),
-		})
+		fileName := file[:ind]
+		fileNames = append(fileNames, fileName)
+
+		if strings.HasSuffix(fileName, "_test") {
+			packageName := fileName[:len(fileName)-len("_test")]
+			fileNames = append(fileNames, packageName)
+		}
 	}
 
+	dirNames := make([]string, 0)
 	dir := path.Dir(location.File)
 	if dir != "." {
 		ind := strings.LastIndex(dir, "/")
+		dirNames = append(dirNames, dir[ind+1:])
+	}
+
+	result := make([]CompletionItem, 0)
+	for _, d := range dirNames {
 		result = append(result, CompletionItem{
-			Label:      fmt.Sprintf("package %s", dir[ind+1:]),
+			Label:      fmt.Sprintf("package %s", d),
 			Kind:       PackageItem,
-			InsertText: fmt.Sprintf("package %s", dir[ind+1:]),
+			InsertText: fmt.Sprintf("package %s", d),
 		})
+		for _, f := range fileNames {
+			result = append(result, CompletionItem{
+				Label:      fmt.Sprintf("package %s", f),
+				Kind:       PackageItem,
+				InsertText: fmt.Sprintf("package %s", f),
+			}, CompletionItem{
+				Label:      fmt.Sprintf("package %s.%s", d, f),
+				Kind:       PackageItem,
+				InsertText: fmt.Sprintf("package %s.%s", d, f),
+			})
+		}
 	}
 
 	return result
