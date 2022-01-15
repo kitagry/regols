@@ -30,6 +30,21 @@ func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
 			return []*ast.Location{target.Loc()}
 		}
 	}
+	if val, ok := term.Value.(ast.Var); ok {
+		module := p.GetModule(term.Loc().File)
+		for _, imp := range module.Imports {
+			if imp.Alias != "" && val.Equal(imp.Alias) {
+				return []*ast.Location{imp.Path.Location}
+			}
+
+			if imp.Alias == "" {
+				ref, ok := imp.Path.Value.(ast.Ref)
+				if ok && val.String() == string(ref[len(ref)-1].Value.(ast.String)) {
+					return []*ast.Location{ref[len(ref)-1].Loc()}
+				}
+			}
+		}
+	}
 	return p.findDefinitionInModule(term, path)
 }
 
@@ -56,6 +71,15 @@ func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term
 	//           ^ this is key
 	if rule.Head.Key != nil {
 		result := p.findDefinitionInTerm(term, rule.Head.Key)
+		if result != nil {
+			return result
+		}
+	}
+
+	// func() = test
+	//          ^ this is value
+	if rule.Head.Value != nil {
+		result := p.findDefinitionInTerm(term, rule.Head.Value)
 		if result != nil {
 			return result
 		}

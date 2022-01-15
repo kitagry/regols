@@ -2,7 +2,6 @@ package source_test
 
 import (
 	"errors"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -12,65 +11,120 @@ import (
 )
 
 func TestLookupDefinition(t *testing.T) {
-	thisPath, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to find test path: %v", err)
-	}
-	testDataPath := thisPath + "/testdata"
-
-	p, err := source.NewProject(testDataPath)
-	if err != nil {
-		t.Fatalf("failed to create project: %v", err)
-	}
-
 	tests := map[string]struct {
+		files        map[string]source.File
 		location     *location.Location
 		expectResult []*ast.Location
 		expectErr    error
 	}{
 		"in file definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+violation[msg] {
+	m := "hello"
+	msg = m
+}`,
+				},
+			},
 			location: &location.Location{
-				Row: 9,
+				Row: 5,
 				Col: 8,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m"),
+				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	msg = m"),
 				Text: []byte("m"),
-				File: testDataPath + "/src.rego",
+				File: "src.rego",
 			},
 			expectResult: []*ast.Location{
 				{
-					Row: 6,
+					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m"),
+					Offset: len("package main\n\nviolation[msg] {\n	m"),
 					Text: []byte("m"),
-					File: testDataPath + "/src.rego",
+					File: "src.rego",
 				},
 			},
 		},
 		"in file definition in args": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+violation[msg] {
+	m := "hello"
+	msg = m
+}`,
+				},
+			},
 			location: &location.Location{
-				Row: 9,
+				Row: 5,
 				Col: 2,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	m"),
+				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	m"),
 				Text: []byte("m"),
-				File: testDataPath + "/src.rego",
+				File: "src.rego",
 			},
 			expectResult: []*ast.Location{
 				{
-					Row:    5,
+					Row:    3,
 					Col:    11,
-					Offset: len("package main\n\nimport data.library\n\nviolation[m"),
+					Offset: len("package main\n\nviolation[m"),
 					Text:   []byte("msg"),
-					File:   testDataPath + "/src.rego",
+					File:   "src.rego",
 				},
 			},
 		},
-		"same library but other definition": {
+		"": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+test(msg) = test {
+	msg == "hello"
+	test = "hello"
+}`,
+				},
+			},
 			location: &location.Location{
-				Row: 7,
+				Row: 5,
+				Col: 2,
+				Offset: len("package main\n\ntest(msg) = test {\n	msg == \"hello\"\n	t"),
+				Text: []byte{'t'},
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    13,
+					Offset: len("package main\n\ntest(msg) = t"),
+					Text:   []byte("test"),
+					File:   "src.rego",
+				},
+			},
+		},
+		"same library but other file definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+violation[msg] {
+	other_method("hello")
+	msg := "hello"
+}`,
+				},
+				"src2.rego": {
+					RowText: `package main
+
+other_method(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			location: &location.Location{
+				Row: 4,
 				Col: 5,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	othe"),
+				Offset: len("package main\n\nviolation[msg] {\n	othe"),
 				Text: []byte("e"),
-				File: testDataPath + "/src.rego",
+				File: "src.rego",
 			},
 			expectResult: []*ast.Location{
 				{
@@ -78,72 +132,127 @@ func TestLookupDefinition(t *testing.T) {
 					Col:    1,
 					Offset: len("package main\n\no"),
 					Text: []byte("other_method(msg) {\n	msg == \"hello\"\n}"),
-					File: testDataPath + "/src2.rego",
+					File: "src2.rego",
 				},
 			},
 		},
 		"in library definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+import data.lib
+
+violation[msg] {
+	lib.method("hello")
+	msg := "hello"
+}`,
+				},
+				"lib.rego": {
+					RowText: `package lib
+
+method(msg) {
+	msg == "hello"
+}`,
+				},
+			},
 			location: &location.Location{
-				Row: 8,
-				Col: 10,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.h"),
-				Text: []byte("h"),
-				File: testDataPath + "/src.rego",
+				Row: 6,
+				Col: 6,
+				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib.m"),
+				Text: []byte("m"),
+				File: "src.rego",
 			},
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
 					Col:    1,
-					Offset: len("package library\n\nh"),
-					Text: []byte("hello(msg) {\n	msg == \"hello\"\n}"),
-					File: testDataPath + "/lib/library.rego",
+					Offset: len("package lib\n\nm"),
+					Text: []byte("method(msg) {\n	msg == \"hello\"\n}"),
+					File: "lib.rego",
+				},
+			},
+		},
+		"jump to import": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+import data.lib
+
+violation[msg] {
+	lib.method("hello")
+	msg := "hello"
+}`,
+				},
+			},
+			location: &location.Location{
+				Row: 6,
+				Col: 2,
+				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+				Text: []byte("l"),
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    13,
+					Offset: len("package main\n\nimport data.l"),
+					Text:   []byte("lib"),
+					File:   "src.rego",
 				},
 			},
 		},
 		"no definition because itself is definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+violation[msg] {
+	m := "hello"
+	msg := m
+}`,
+				},
+			},
 			location: &location.Location{
-				Row: 6,
+				Row: 4,
 				Col: 2,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m"),
+				Offset: len("package main\n\nviolation[msg] {\n	m"),
 				Text: []byte("m"),
-				File: testDataPath + "/src.rego",
+				File: "src.rego",
 			},
 			expectResult: []*ast.Location{},
 			expectErr:    nil,
 		},
 		"with not library but has dot": {
-			location: &location.Location{
-				Row: 14,
-				Col: 11,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[container]\n	container.n}"),
-				Text: []byte("n"),
-				File: testDataPath + "/src.rego",
-			},
-			expectResult: []*ast.Location{
-				{
-					Row: 13,
-					Col: 21,
-					Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[c"),
-					Text: []byte("container"),
-					File: testDataPath + "/src.rego",
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+violation[msg] {
+	containers[container]
+	container.name
+}
+
+containers[container] {
+	container := input.resource.container
+}`,
 				},
 			},
-		},
-		"With two library method can jump": {
 			location: &location.Location{
-				Row: 14,
-				Col: 11,
-				Offset: len("package main\n\nimport data.library\n\nviolation[msg] {\n	m := \"hello\"\n	other_method(m)\n	library.hello(m)\n	msg = m\n}\n\nviolation[msg] {\n	library.containers[container]\n	container.name\n	msg = \"hello\"\n}\n\nviolation[msg] {\n	library.containers[container]\n	library.h"),
-				Text: []byte("h"),
-				File: testDataPath + "/src.rego",
+				Row: 5,
+				Col: 12,
+				Offset: len("package main\n\nviolation[msg] {\n	containers[container]\n	container.n}"),
+				Text: []byte("n"),
+				File: "src.rego",
 			},
 			expectResult: []*ast.Location{
 				{
-					Row:    3,
-					Col:    1,
-					Offset: len("package library\n\nh"),
-					Text: []byte("hello(msg) {\n	msg == \"hello\"\n}"),
-					File: testDataPath + "/lib/library.rego",
+					Row: 4,
+					Col: 13,
+					Offset: len("package main\n\nviolation[msg] {\n	containers[c"),
+					Text: []byte("container"),
+					File: "src.rego",
 				},
 			},
 		},
@@ -151,6 +260,11 @@ func TestLookupDefinition(t *testing.T) {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
+			p, err := source.NewProjectWithFiles(tt.files)
+			if err != nil {
+				t.Fatalf("failed to create project: %v", err)
+			}
+
 			got, err := p.LookupDefinition(tt.location)
 			if !errors.Is(err, tt.expectErr) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
