@@ -29,6 +29,7 @@ const (
 	PackageItem
 	FunctionItem
 	BuiltinFunctionItem
+	ImportItem
 )
 
 const (
@@ -73,7 +74,8 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 			return p.listCompletionItemsForTerms(location, target)
 		}
 	}
-	return nil
+
+	return p.listImportCompletionItems(location)
 }
 
 func (p *Project) listPackageCompletionItems(location *ast.Location) []CompletionItem {
@@ -278,6 +280,44 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 		}
 	}
 	return result
+}
+
+func (p *Project) listImportCompletionItems(location *ast.Location) []CompletionItem {
+	refs := p.cache.GetPackages()
+
+	alreadyExistPackages := make([]ast.Ref, 0)
+	policy := p.cache.Get(location.File)
+	if policy.Module != nil {
+		alreadyExistPackages = append(alreadyExistPackages, policy.Module.Package.Path)
+
+		for _, imp := range policy.Module.Imports {
+			if ref, ok := imp.Path.Value.(ast.Ref); ok {
+				alreadyExistPackages = append(alreadyExistPackages, ref)
+			}
+		}
+	}
+
+	result := make([]CompletionItem, 0, len(refs))
+	for _, r := range refs {
+		if !inRef(r, alreadyExistPackages) {
+			result = append(result, CompletionItem{
+				Label:      fmt.Sprintf("import %s", r.String()),
+				Kind:       ImportItem,
+				InsertText: fmt.Sprintf("import %s", r.String()),
+			})
+		}
+	}
+
+	return result
+}
+
+func inRef(target ast.Ref, list []ast.Ref) bool {
+	for _, l := range list {
+		if l.Equal(target) {
+			return true
+		}
+	}
+	return false
 }
 
 func importToLabel(imp *ast.Import) string {

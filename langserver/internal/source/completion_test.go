@@ -3,11 +3,91 @@ package source_test
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestProject_ListCompletionItems(t *testing.T) {
+	tests := map[string]struct {
+		files       map[string]source.File
+		location    *ast.Location
+		expectItems []source.CompletionItem
+	}{
+		"import completion": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+`,
+				},
+				"lib.rego": {
+					RowText: `package lib`,
+				},
+			},
+			location: &ast.Location{
+				Row:    3,
+				Col:    1,
+				Offset: len("pacakge src\n\n"),
+				Text:   []byte(""),
+				File:   "src.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "import data.lib",
+					Kind:       source.ImportItem,
+					InsertText: "import data.lib",
+				},
+			},
+		},
+		"ignore already imported": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+import data.lib
+`,
+				},
+				"lib.rego": {
+					RowText: `package lib`,
+				},
+			},
+			location: &ast.Location{
+				Row:    4,
+				Col:    1,
+				Offset: len("pacakge src\n\nimport data.lib"),
+				Text:   []byte(""),
+				File:   "src.rego",
+			},
+			expectItems: []source.CompletionItem{},
+		},
+	}
+
+	for n, tt := range tests {
+		t.Run(n, func(t *testing.T) {
+			project, err := source.NewProjectWithFiles(tt.files)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := project.ListCompletionItems(tt.location)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if diff := cmp.Diff(tt.expectItems, got); diff != "" {
+				t.Errorf("ListCompletionItems result diff (-expect, +got)\n%s", diff)
+			}
+			for _, e := range tt.expectItems {
+				if !in(e, got) {
+					t.Errorf("ListCompletionItems should return item %v, got %v", e, got)
+				}
+			}
+		})
+	}
+}
+
+func TestProject_ListCompletionItemsExist(t *testing.T) {
 	tests := map[string]struct {
 		files       map[string]source.File
 		location    *ast.Location
@@ -348,6 +428,11 @@ violation[msg] {
 					Label:      "package bbb",
 					Kind:       source.PackageItem,
 					InsertText: "package bbb",
+				},
+				{
+					Label:      "package aaa.bbb",
+					Kind:       source.PackageItem,
+					InsertText: "package aaa.bbb",
 				},
 			},
 		},
