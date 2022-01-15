@@ -29,6 +29,7 @@ const (
 	PackageItem
 	FunctionItem
 	BuiltinFunctionItem
+	ImportItem
 )
 
 const (
@@ -73,29 +74,48 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 			return p.listCompletionItemsForTerms(location, target)
 		}
 	}
-	return nil
+
+	return p.listImportCompletionItems(location)
 }
 
 func (p *Project) listPackageCompletionItems(location *ast.Location) []CompletionItem {
-	result := make([]CompletionItem, 0)
-
+	fileNames := make([]string, 0)
 	file := path.Base(location.File)
 	if ind := strings.LastIndex(file, ".rego"); ind > 0 {
-		result = append(result, CompletionItem{
-			Label:      fmt.Sprintf("package %s", file[:ind]),
-			Kind:       PackageItem,
-			InsertText: fmt.Sprintf("package %s", file[:ind]),
-		})
+		fileName := file[:ind]
+		fileNames = append(fileNames, fileName)
+
+		if strings.HasSuffix(fileName, "_test") {
+			packageName := fileName[:len(fileName)-len("_test")]
+			fileNames = append(fileNames, packageName)
+		}
 	}
 
+	dirNames := make([]string, 0)
 	dir := path.Dir(location.File)
 	if dir != "." {
 		ind := strings.LastIndex(dir, "/")
+		dirNames = append(dirNames, dir[ind+1:])
+	}
+
+	result := make([]CompletionItem, 0)
+	for _, d := range dirNames {
 		result = append(result, CompletionItem{
-			Label:      fmt.Sprintf("package %s", dir[ind+1:]),
+			Label:      fmt.Sprintf("package %s", d),
 			Kind:       PackageItem,
-			InsertText: fmt.Sprintf("package %s", dir[ind+1:]),
+			InsertText: fmt.Sprintf("package %s", d),
 		})
+		for _, f := range fileNames {
+			result = append(result, CompletionItem{
+				Label:      fmt.Sprintf("package %s", f),
+				Kind:       PackageItem,
+				InsertText: fmt.Sprintf("package %s", f),
+			}, CompletionItem{
+				Label:      fmt.Sprintf("package %s.%s", d, f),
+				Kind:       PackageItem,
+				InsertText: fmt.Sprintf("package %s.%s", d, f),
+			})
+		}
 	}
 
 	return result
@@ -260,6 +280,44 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 		}
 	}
 	return result
+}
+
+func (p *Project) listImportCompletionItems(location *ast.Location) []CompletionItem {
+	refs := p.cache.GetPackages()
+
+	alreadyExistPackages := make([]ast.Ref, 0)
+	policy := p.cache.Get(location.File)
+	if policy.Module != nil {
+		alreadyExistPackages = append(alreadyExistPackages, policy.Module.Package.Path)
+
+		for _, imp := range policy.Module.Imports {
+			if ref, ok := imp.Path.Value.(ast.Ref); ok {
+				alreadyExistPackages = append(alreadyExistPackages, ref)
+			}
+		}
+	}
+
+	result := make([]CompletionItem, 0, len(refs))
+	for _, r := range refs {
+		if !inRef(r, alreadyExistPackages) {
+			result = append(result, CompletionItem{
+				Label:      fmt.Sprintf("import %s", r.String()),
+				Kind:       ImportItem,
+				InsertText: fmt.Sprintf("import %s", r.String()),
+			})
+		}
+	}
+
+	return result
+}
+
+func inRef(target ast.Ref, list []ast.Ref) bool {
+	for _, l := range list {
+		if l.Equal(target) {
+			return true
+		}
+	}
+	return false
 }
 
 func importToLabel(imp *ast.Import) string {

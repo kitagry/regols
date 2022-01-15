@@ -170,3 +170,23 @@ func (g *GlobalCache) GetErrors(path string) map[string]ast.Errors {
 	}
 	return errs
 }
+
+func (g *GlobalCache) GetPackages() []ast.Ref {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	packages := make(map[string]ast.Ref)
+	for _, p := range g.pathToPlicies {
+		if p.Module == nil {
+			continue
+		}
+
+		packages[p.Module.Package.Path.String()] = p.Module.Package.Path
+	}
+
+	result := make([]ast.Ref, 0, len(packages))
+	for _, p := range packages {
+		result = append(result, p)
+	}
+	return result
+}
