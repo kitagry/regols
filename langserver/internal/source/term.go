@@ -97,28 +97,10 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term)
 	case ast.Call:
 		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
 	case ast.Ref:
-		if len(v) == 1 {
-			return p.searchTargetTermInTerm(loc, v[0])
-		}
-		if len(v) >= 2 {
-			// This is for imported method
-			// If you use the following code.
-			// ```
-			// import data.lib.util
-			// util.test[hoge]
-			// ```
-			// Then
-			// util.test[hoge] <- ast.Ref
-			// util <- ast.Var
-			// test <- ast.String
-			// I think this is a bit wrong...
-			// https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar
-			_, ok1 := v[0].Value.(ast.Var)
-			_, ok2 := v[1].Value.(ast.String)
-			if ok1 && ok2 && (in(loc, v[0].Loc()) || in(loc, v[1].Loc())) {
-				value := ast.Ref{v[0], v[1]}
-				loc := v[0].Loc()
-				return &ast.Term{Value: value, Location: &location.Location{
+		for i, t := range v {
+			if in(loc, t.Loc()) {
+				value := v[:i+1]
+				return &ast.Term{Value: value, Location: &ast.Location{
 					Text:   []byte(value.String()),
 					File:   loc.File,
 					Row:    loc.Row,

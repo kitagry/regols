@@ -336,7 +336,7 @@ violation[msg] {
 
 			for _, e := range tt.expectItems {
 				if !in(e, got) {
-					t.Errorf("LookupDefinition should return item %v, got %v", e, got)
+					t.Errorf("ListCompletionItems should return item %v, got %v", e, got)
 				}
 			}
 		})
