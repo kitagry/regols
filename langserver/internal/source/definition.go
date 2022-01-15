@@ -76,6 +76,15 @@ func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term
 		}
 	}
 
+	// func() = test
+	//          ^ this is value
+	if rule.Head.Value != nil {
+		result := p.findDefinitionInTerm(term, rule.Head.Value)
+		if result != nil {
+			return result
+		}
+	}
+
 	// func(hello)
 	//      ^ this is arg
 	result := p.findDefinitionInTerms(term, rule.Head.Args)

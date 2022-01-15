@@ -73,6 +73,34 @@ violation[msg] {
 				},
 			},
 		},
+		"": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+test(msg) = test {
+	msg == "hello"
+	test = "hello"
+}`,
+				},
+			},
+			location: &location.Location{
+				Row: 5,
+				Col: 2,
+				Offset: len("package main\n\ntest(msg) = test {\n	msg == \"hello\"\n	t"),
+				Text: []byte{'t'},
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    13,
+					Offset: len("package main\n\ntest(msg) = t"),
+					Text:   []byte("test"),
+					File:   "src.rego",
+				},
+			},
+		},
 		"same library but other file definition": {
 			files: map[string]source.File{
 				"src.rego": {
