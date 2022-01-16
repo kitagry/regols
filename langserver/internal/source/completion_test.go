@@ -436,6 +436,42 @@ violation[msg] {
 				},
 			},
 		},
+		"some rule is function and others is variable": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+violation[msg] {
+	is
+}
+
+is_hello(msg) {
+	msg == "hello"
+}
+
+default is_test = true`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 3,
+				Offset: len("pacakge src\n\nviolation[msg] {	is"),
+				Text: []byte("s"),
+				File: "src.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "is_hello",
+					Kind:       source.FunctionItem,
+					InsertText: "is_hello(msg)",
+				},
+				{
+					Label:      "is_test",
+					Kind:       source.VariableItem,
+					InsertText: "is_test",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

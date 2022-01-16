@@ -380,9 +380,16 @@ func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 		insertText.WriteByte(']')
 	}
 
+	var itemKind CompletionKind
+	if len(rule.Head.Args) != 0 || head.Key != nil {
+		itemKind = FunctionItem
+	} else {
+		itemKind = VariableItem
+	}
+
 	return CompletionItem{
 		Label:      rule.Head.Name.String(),
-		Kind:       FunctionItem,
+		Kind:       itemKind,
 		InsertText: insertText.String(),
 	}
 }
