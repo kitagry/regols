@@ -61,6 +61,34 @@ import data.lib
 			},
 			expectItems: []source.CompletionItem{},
 		},
+		"completion for else": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+authorize = "allow" {
+	msg := "allow"
+	trace(msg)
+} else = "deny" {
+	ms := "deny"
+	ms
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 8,
+				Col: 3,
+				Offset: len("package src\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	ms := \"deny\"\n	ms"),
+				Text: []byte("s"),
+				File: "src.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label: "ms",
+					Kind:  source.VariableItem,
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
