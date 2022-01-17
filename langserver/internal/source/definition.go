@@ -56,10 +56,19 @@ func (p *Project) findRuleForTerm(loc *ast.Location) *ast.Rule {
 
 	for _, r := range module.Rules {
 		if in(loc, r.Loc()) {
-			return r
+			return p.findElseRule(loc, r)
 		}
 	}
 	return nil
+}
+
+func (p *Project) findElseRule(loc *ast.Location, rule *ast.Rule) *ast.Rule {
+	for {
+		if rule.Else == nil || !in(loc, rule.Else.Loc()) {
+			return rule
+		}
+		rule = rule.Else
+	}
 }
 
 func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term {

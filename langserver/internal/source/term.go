@@ -68,17 +68,20 @@ func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term,
 }
 
 func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule) (*ast.Term, error) {
-	for _, b := range rule.Body {
-		if !in(location, b.Loc()) {
-			continue
-		}
+	for rule != nil {
+		for _, b := range rule.Body {
+			if !in(location, b.Loc()) {
+				continue
+			}
 
-		switch t := b.Terms.(type) {
-		case *ast.Term:
-			return p.searchTargetTermInTerm(location, t)
-		case []*ast.Term:
-			return p.searchTargetTermInTerms(location, t)
+			switch t := b.Terms.(type) {
+			case *ast.Term:
+				return p.searchTargetTermInTerm(location, t)
+			case []*ast.Term:
+				return p.searchTargetTermInTerms(location, t)
+			}
 		}
+		rule = rule.Else
 	}
 	return nil, nil
 }
