@@ -256,6 +256,108 @@ containers[container] {
 				},
 			},
 		},
+		"definition has else": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+authorize = "allow" {
+	msg := "allow"
+	trace(msg)
+} else = "deny" {
+	msg := "deny"
+	trace(msg)
+} else = "out" {
+	msg := "out"
+	trace(msg)
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 5,
+				Col: 8,
+				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(m"),
+				Text: []byte("m"),
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row: 4,
+					Col: 2,
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	m"),
+					Text: []byte("msg"),
+					File: "src.rego",
+				},
+			},
+		},
+		"else definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+authorize = "allow" {
+	msg := "allow"
+	trace(msg)
+} else = "deny" {
+	msg := "deny"
+	trace(msg)
+} else = "out" {
+	msg := "out"
+	trace(msg)
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 8,
+				Col: 8,
+				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(m"),
+				Text: []byte("m"),
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row: 7,
+					Col: 2,
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	m"),
+					Text: []byte("msg"),
+					File: "src.rego",
+				},
+			},
+		},
+		"else of else definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+authorize = "allow" {
+	msg := "allow"
+	trace(msg)
+} else = "deny" {
+	msg := "deny"
+	trace(msg)
+} else = "out" {
+	msg := "out"
+	trace(msg)
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 11,
+				Col: 8,
+				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	msg := \"out\"\n	trace(m"),
+				Text: []byte("m"),
+				File: "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row: 10,
+					Col: 2,
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	m"),
+					Text: []byte("msg"),
+					File: "src.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

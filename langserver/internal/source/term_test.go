@@ -155,6 +155,70 @@ violation[msg] {
 				Value: ast.Var("lib"),
 			},
 		},
+		"searchTerm in else": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+authorize = "allow" {
+	msg == "allow"
+} else = "deny" {
+	msg == "deny"
+} else = "out" {
+	msg == "out"
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 6,
+				Col: 2,
+				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	m"),
+				Text: []byte("m"),
+				File: "src.rego",
+			},
+			expectTerm: &ast.Term{
+				Location: &ast.Location{
+					Row: 6,
+					Col: 2,
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\" {\n	m"),
+					Text: []byte("msg"),
+					File: "src.rego",
+				},
+				Value: ast.Var("msg"),
+			},
+		},
+		"searchTerm in else of else": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+authorize = "allow" {
+	msg == "allow"
+} else = "deny" {
+	msg == "deny"
+} else = "out" {
+	msg == "out"
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 8,
+				Col: 2,
+				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	m"),
+				Text: []byte("m"),
+				File: "src.rego",
+			},
+			expectTerm: &ast.Term{
+				Location: &ast.Location{
+					Row: 8,
+					Col: 2,
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	m"),
+					Text: []byte("msg"),
+					File: "src.rego",
+				},
+				Value: ast.Var("msg"),
+			},
+		},
 	}
 
 	for n, tt := range tests {
