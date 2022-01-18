@@ -143,19 +143,15 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 			result = append(result, list...)
 		}
 
-		for _, r := range module.Rules {
-			result = append(result, createRuleCompletionItem(r))
-		}
+		result = append(result, p.listCompletionItemsModuleRules(module.Rules)...)
 	}
 
 	if p.isLibraryTerm(target) {
 		if _, ok := target.Value.(ast.Ref); ok {
 			importRef := p.findPolicyRef(target)
 			policies := p.cache.FindPolicies(importRef)
-			for _, p := range policies {
-				for _, r := range p.Rules {
-					result = append(result, createRuleCompletionItem(r))
-				}
+			for _, po := range policies {
+				result = append(result, p.listCompletionItemsModuleRules(po.Rules)...)
 			}
 		}
 	}
@@ -234,6 +230,19 @@ func (p *Project) listCompletionItemsInTerm(loc *ast.Location, term *ast.Term) [
 			Label: v.String(),
 			Kind:  VariableItem,
 		})
+	}
+	return result
+}
+
+func (p *Project) listCompletionItemsModuleRules(rules []*ast.Rule) []CompletionItem {
+	result := make([]CompletionItem, 0, len(rules))
+	exists := make(map[string]struct{}, 0)
+	for _, r := range rules {
+		item := createRuleCompletionItem(r)
+		if _, ok := exists[item.Label]; !ok {
+			result = append(result, item)
+			exists[item.Label] = struct{}{}
+		}
 	}
 	return result
 }

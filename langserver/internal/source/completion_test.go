@@ -89,6 +89,35 @@ authorize = "allow" {
 				},
 			},
 		},
+		"completion other args": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+func() {
+	me
+}
+
+mem_multiple("E") = 1000000000000000000000
+
+mem_multiple("P") = 1000000000000000000`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 3,
+				Offset: len("package src\n\nfunc() {\n	me"),
+				Text: []byte("e"),
+				File: "src.rego",
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "mem_multiple",
+					Kind:       source.FunctionItem,
+					InsertText: `mem_multiple("E")`,
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
