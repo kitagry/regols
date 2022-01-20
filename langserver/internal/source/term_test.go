@@ -219,6 +219,34 @@ authorize = "allow" {
 				Value: ast.Var("msg"),
 			},
 		},
+		"searchTerm in head value": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+authorize = input {
+	input.message == "allow"
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row:    3,
+				Col:    13,
+				Offset: len("package main\n\nauthorize = i"),
+				Text:   []byte("i"),
+				File:   "src.rego",
+			},
+			expectTerm: &ast.Term{
+				Location: &ast.Location{
+					Row:    3,
+					Col:    13,
+					Offset: len("package main\n\nauthorize = i"),
+					Text:   []byte("input"),
+					File:   "src.rego",
+				},
+				Value: ast.Var("input"),
+			},
+		},
 	}
 
 	for n, tt := range tests {
