@@ -115,6 +115,9 @@ mem_multiple("P") = 1000000000000000000`,
 					Label:      "mem_multiple",
 					Kind:       source.FunctionItem,
 					InsertText: `mem_multiple("E")`,
+					Detail: `mem_multiple("E") = 1000000000000000000000
+
+mem_multiple("P") = 1000000000000000000`,
 				},
 			},
 		},
@@ -261,6 +264,9 @@ is_hello(msg) {
 					Label:      "is_hello",
 					Kind:       source.FunctionItem,
 					InsertText: "is_hello(msg)",
+					Detail: `is_hello(msg) {
+	msg == "hello"
+}`,
 				},
 			},
 		},
@@ -295,6 +301,9 @@ is_hello(msg) {
 					Label:      "is_hello",
 					Kind:       source.FunctionItem,
 					InsertText: "is_hello(msg)",
+					Detail: `is_hello(msg) {
+	msg == "hello"
+}`,
 				},
 			},
 		},
@@ -350,6 +359,10 @@ violation[msg] {
 					Label:      "violation",
 					Kind:       source.FunctionItem,
 					InsertText: "violation[msg]",
+					Detail: `violation[msg] {
+	msg = "hello"
+
+}`,
 				},
 			},
 		},
@@ -521,11 +534,15 @@ default is_test = true`,
 					Label:      "is_hello",
 					Kind:       source.FunctionItem,
 					InsertText: "is_hello(msg)",
+					Detail: `is_hello(msg) {
+	msg == "hello"
+}`,
 				},
 				{
 					Label:      "is_test",
 					Kind:       source.VariableItem,
 					InsertText: "is_test",
+					Detail:     "default is_test = true",
 				},
 			},
 		},

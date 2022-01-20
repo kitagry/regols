@@ -235,14 +235,21 @@ func (p *Project) listCompletionItemsInTerm(loc *ast.Location, term *ast.Term) [
 }
 
 func (p *Project) listCompletionItemsModuleRules(rules []*ast.Rule) []CompletionItem {
-	result := make([]CompletionItem, 0, len(rules))
-	exists := make(map[string]struct{}, 0)
+	exists := make(map[string]CompletionItem, 0)
 	for _, r := range rules {
-		item := createRuleCompletionItem(r)
-		if _, ok := exists[item.Label]; !ok {
-			result = append(result, item)
-			exists[item.Label] = struct{}{}
+		item := p.createRuleCompletionItem(r)
+		alreadyItem, ok := exists[item.Label]
+		if !ok {
+			exists[item.Label] = item
+			continue
 		}
+		alreadyItem.Detail += "\n\n" + item.Detail
+		exists[alreadyItem.Label] = alreadyItem
+	}
+
+	result := make([]CompletionItem, 0, len(rules))
+	for _, item := range exists {
+		result = append(result, item)
 	}
 	return result
 }
@@ -371,7 +378,7 @@ func getTermPrefix(target *ast.Term) string {
 	}
 }
 
-func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
+func (p *Project) createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 	head := rule.Head
 	var insertText strings.Builder
 	insertText.WriteString(head.Name.String())
@@ -396,9 +403,15 @@ func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 		itemKind = VariableItem
 	}
 
+	detail := string(rule.Loc().Text)
+	if detail == "default" {
+		detail = rule.String()
+	}
+
 	return CompletionItem{
 		Label:      rule.Head.Name.String(),
 		Kind:       itemKind,
 		InsertText: insertText.String(),
+		Detail:     detail,
 	}
 }
