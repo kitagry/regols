@@ -247,6 +247,29 @@ authorize = input {
 				Value: ast.Var("input"),
 			},
 		},
+		"searchTerm with `with`": {
+			files: map[string]source.File{
+				"src_test.rego": {
+					RowText: `package main
+
+test_hoge {
+	violation with input as "{}"
+}
+
+violation[msg] {
+	msg := "hello"
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 12,
+				Offset: len("package main\n\ntest_hoge {\n	violation w"),
+				Text: []byte("w"),
+				File: "src_test.rego",
+			},
+			expectTerm: nil,
+		},
 	}
 
 	for n, tt := range tests {
