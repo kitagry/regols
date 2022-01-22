@@ -190,6 +190,10 @@ func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Loc
 }
 
 func (p *Project) findPolicyRef(term *ast.Term) ast.Ref {
+	if term == nil {
+		return nil
+	}
+
 	module := p.GetModule(term.Loc().File)
 	if module == nil {
 		return nil

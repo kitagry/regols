@@ -123,7 +123,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 		return nil
 	}
 
-	if !p.isLibraryTerm(target) {
+	if !isLibraryTerm(target) {
 		for _, i := range module.Imports {
 			result = append(result, CompletionItem{
 				Label: importToLabel(i),
@@ -136,33 +136,12 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 			list := p.listCompletionItemsInRule(location, rule)
 			result = append(result, list...)
 		}
-
-		result = append(result, p.listCompletionItemsModuleRules(module.Rules)...)
 	}
 
-	if p.isLibraryTerm(target) {
-		if _, ok := target.Value.(ast.Ref); ok {
-			importRef := p.findPolicyRef(target)
-			policies := p.cache.FindPolicies(importRef)
-			for _, po := range policies {
-				result = append(result, p.listCompletionItemsModuleRules(po.Rules)...)
-			}
-		}
-	}
-
-	result = append(result, p.listBuiltinFunction(target)...)
+	result = append(result, p.listRules(location, target)...)
+	result = append(result, p.listBuiltinFunctions(target)...)
 
 	return result
-}
-
-// When target is "lib." return true, else return false
-func (p *Project) isLibraryTerm(target *ast.Term) bool {
-	if target == nil {
-		return false
-	}
-
-	_, ok := target.Value.(ast.Ref)
-	return ok
 }
 
 func (p *Project) listCompletionItemsInRule(loc *ast.Location, rule *ast.Rule) []CompletionItem {
@@ -228,27 +207,46 @@ func (p *Project) listCompletionItemsInTerm(loc *ast.Location, term *ast.Term) [
 	return result
 }
 
-func (p *Project) listCompletionItemsModuleRules(rules []*ast.Rule) []CompletionItem {
-	exists := make(map[string]CompletionItem, 0)
-	for _, r := range rules {
-		item := p.createRuleCompletionItem(r)
-		alreadyItem, ok := exists[item.Label]
-		if !ok {
-			exists[item.Label] = item
-			continue
+func (p *Project) listRules(location *ast.Location, term *ast.Term) []CompletionItem {
+	searchPackageName := p.findPolicyRef(term)
+	if searchPackageName == nil {
+		module := p.GetModule(location.File)
+		if module == nil {
+			return nil
 		}
-		alreadyItem.Detail += "\n\n" + item.Detail
-		exists[alreadyItem.Label] = alreadyItem
+		searchPackageName = module.Package.Path
+	}
+	searchModules := p.cache.FindPolicies(searchPackageName)
+	if len(searchModules) == 0 {
+		return nil
 	}
 
-	result := make([]CompletionItem, 0, len(rules))
+	return p.listRulesFromModules(searchModules)
+}
+
+func (p *Project) listRulesFromModules(modules []*ast.Module) []CompletionItem {
+	exists := make(map[string]CompletionItem)
+	for _, m := range modules {
+		for _, r := range m.Rules {
+			item := createRuleCompletionItem(r)
+			alreadyItem, ok := exists[item.Label]
+			if !ok {
+				exists[item.Label] = item
+				continue
+			}
+			alreadyItem.Detail += "\n\n" + item.Detail
+			exists[alreadyItem.Label] = alreadyItem
+		}
+	}
+
+	result := make([]CompletionItem, 0)
 	for _, item := range exists {
 		result = append(result, item)
 	}
 	return result
 }
 
-func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
+func (p *Project) listBuiltinFunctions(term *ast.Term) []CompletionItem {
 	if term == nil {
 		return nil
 	}
@@ -317,6 +315,49 @@ func (p *Project) listImportCompletionItems(location *ast.Location) []Completion
 	return result
 }
 
+// When target is "lib." return true, else return false
+func isLibraryTerm(target *ast.Term) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.Value.(ast.Ref)
+	return ok
+}
+
+func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
+	head := rule.Head
+	var insertText strings.Builder
+	insertText.WriteString(head.Name.String())
+	if len(rule.Head.Args) != 0 {
+		args := make([]string, len(rule.Head.Args))
+		for i, arg := range head.Args {
+			args[i] = arg.String()
+		}
+		insertText.WriteByte('(')
+		insertText.WriteString(strings.Join(args, ", "))
+		insertText.WriteByte(')')
+	} else if head.Key != nil {
+		insertText.WriteByte('[')
+		insertText.WriteString(head.Key.String())
+		insertText.WriteByte(']')
+	}
+
+	var itemKind CompletionKind
+	if len(rule.Head.Args) != 0 || head.Key != nil {
+		itemKind = FunctionItem
+	} else {
+		itemKind = VariableItem
+	}
+
+	return CompletionItem{
+		Label:      rule.Head.Name.String(),
+		Kind:       itemKind,
+		InsertText: insertText.String(),
+		Detail:     createDocForRule(rule),
+	}
+}
+
 func inRef(target ast.Ref, list []ast.Ref) bool {
 	for _, l := range list {
 		if l.Equal(target) {
@@ -365,39 +406,6 @@ func getTermPrefix(target *ast.Term) string {
 		return ""
 	default:
 		return target.String()
-	}
-}
-
-func (p *Project) createRuleCompletionItem(rule *ast.Rule) CompletionItem {
-	head := rule.Head
-	var insertText strings.Builder
-	insertText.WriteString(head.Name.String())
-	if len(rule.Head.Args) != 0 {
-		args := make([]string, len(rule.Head.Args))
-		for i, arg := range head.Args {
-			args[i] = arg.String()
-		}
-		insertText.WriteByte('(')
-		insertText.WriteString(strings.Join(args, ", "))
-		insertText.WriteByte(')')
-	} else if head.Key != nil {
-		insertText.WriteByte('[')
-		insertText.WriteString(head.Key.String())
-		insertText.WriteByte(']')
-	}
-
-	var itemKind CompletionKind
-	if len(rule.Head.Args) != 0 || head.Key != nil {
-		itemKind = FunctionItem
-	} else {
-		itemKind = VariableItem
-	}
-
-	return CompletionItem{
-		Label:      rule.Head.Name.String(),
-		Kind:       itemKind,
-		InsertText: insertText.String(),
-		Detail:     createDocForRule(rule),
 	}
 }
 

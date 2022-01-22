@@ -21,11 +21,6 @@ type handler struct {
 	project *source.Project
 }
 
-type document struct {
-	Text    string
-	Version int
-}
-
 func NewHandler() jsonrpc2.Handler {
 	handler := &handler{
 		logger:            log.New(os.Stderr, "", log.LstdFlags),
