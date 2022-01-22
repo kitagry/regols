@@ -6,8 +6,15 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+const (
+	BuiltinDetail = `built-in function
+
+See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions`
+)
+
 type Document struct {
-	Content string
+	Content  string
+	Language string
 }
 
 func (p *Project) TermDocument(loc *ast.Location) ([]Document, error) {
@@ -28,6 +35,24 @@ func (p *Project) findTermDocument(term *ast.Term) []Document {
 		target := p.findDefinitionInRule(term, rule)
 		if target != nil {
 			return nil
+		}
+
+		for _, b := range ast.DefaultBuiltins {
+			if b.Infix != "" {
+				continue
+			}
+			if b.Name == term.String() {
+				return []Document{
+					{
+						Content:  b.Name + b.Decl.FuncArgs().String(),
+						Language: "rego",
+					},
+					{
+						Content:  BuiltinDetail,
+						Language: "markdown",
+					},
+				}
+			}
 		}
 	}
 	return p.findTermDocumentInModule(term)
@@ -50,7 +75,8 @@ func (p *Project) findTermDocumentInModule(term *ast.Term) []Document {
 		for _, rule := range mod.Rules {
 			if rule.Head.Name.String() == word {
 				result = append(result, Document{
-					Content: createDocForRule(rule),
+					Content:  createDocForRule(rule),
+					Language: "rego",
 				})
 			}
 		}

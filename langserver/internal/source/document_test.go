@@ -40,6 +40,7 @@ method(msg) {
 					Content: `method(msg) {
 	msg == "hello"
 }`,
+					Language: "rego",
 				},
 			},
 		},
@@ -64,7 +65,68 @@ default item = "hello"`,
 			},
 			expectDocs: []source.Document{
 				{
-					Content: `default item = "hello"`,
+					Content:  `default item = "hello"`,
+					Language: "rego",
+				},
+			},
+		},
+		"builtin function": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+violation[msg] {
+	sprintf("msg: %s", [msg])
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 2,
+				Offset: len("package src\n\nviolation[msg] {	s"),
+				Text: []byte("s"),
+				File: "src.rego",
+			},
+			expectDocs: []source.Document{
+				{
+					Content:  "sprintf(string, array[any])",
+					Language: "rego",
+				},
+				{
+					Content: `built-in function
+
+See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions`,
+					Language: "markdown",
+				},
+			},
+		},
+		"builtin function with ref": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package src
+
+violation[msg] {
+	json.is_valid("{}")
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 7,
+				Offset: len("package src\n\nviolation[msg] {	json.i"),
+				Text: []byte("i"),
+				File: "src.rego",
+			},
+			expectDocs: []source.Document{
+				{
+					Content:  "json.is_valid(string)",
+					Language: "rego",
+				},
+				{
+					Content: `built-in function
+
+See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions`,
+					Language: "markdown",
 				},
 			},
 		},

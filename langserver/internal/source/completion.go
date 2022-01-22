@@ -32,12 +32,6 @@ const (
 	ImportItem
 )
 
-const (
-	BuiltinDetail = `built-in function
-
-See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions`
-)
-
 func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem, error) {
 	term, err := p.SearchTargetTerm(location)
 	if err != nil {
@@ -267,11 +261,9 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 				continue
 			}
 			result = append(result, CompletionItem{
-				Label: b.Name,
-				Kind:  BuiltinFunctionItem,
-				Detail: fmt.Sprintf(`%s%s
-
-%s`, b.Name, b.Decl.FuncArgs().String(), BuiltinDetail),
+				Label:      b.Name,
+				Kind:       BuiltinFunctionItem,
+				Detail:     createDocForBuiltinFunction(b),
 				InsertText: fmt.Sprintf("%s%s", b.Name, b.Decl.FuncArgs().String()),
 			})
 		}
@@ -286,11 +278,9 @@ func (p *Project) listBuiltinFunction(term *ast.Term) []CompletionItem {
 		if strings.HasPrefix(b.Name, fmt.Sprintf("%s.", val.Value.String())) {
 			name := strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String()))
 			result = append(result, CompletionItem{
-				Label: name,
-				Kind:  BuiltinFunctionItem,
-				Detail: fmt.Sprintf(`%s%s
-
-%s`, b.Name, b.Decl.FuncArgs().String(), BuiltinDetail),
+				Label:      name,
+				Kind:       BuiltinFunctionItem,
+				Detail:     createDocForBuiltinFunction(b),
 				InsertText: fmt.Sprintf("%s%s", name, b.Decl.FuncArgs().String()),
 			})
 		}
@@ -409,4 +399,10 @@ func (p *Project) createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 		InsertText: insertText.String(),
 		Detail:     createDocForRule(rule),
 	}
+}
+
+func createDocForBuiltinFunction(builtin *ast.Builtin) string {
+	return fmt.Sprintf(`%s%s
+
+%s`, builtin.Name, builtin.Decl.FuncArgs().String(), BuiltinDetail)
 }

@@ -30,7 +30,7 @@ func (h *handler) documentIdent(ctx context.Context, uri lsp.DocumentURI, positi
 
 	result := make([]lsp.MarkedString, len(documentResults))
 	for i, d := range documentResults {
-		result[i] = lsp.MarkedString{Language: "rego", Value: d.Content}
+		result[i] = lsp.MarkedString{Language: d.Language, Value: d.Content}
 	}
 	return lsp.Hover{Contents: result}, nil
 }
