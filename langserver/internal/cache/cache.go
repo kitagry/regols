@@ -19,9 +19,7 @@ type Policy struct {
 
 type GlobalCache struct {
 	mu            sync.RWMutex
-	rootPath      string
 	pathToPlicies map[string]*Policy
-	openFiles     map[string]string
 }
 
 func NewGlobalCache(rootPath string) (*GlobalCache, error) {
