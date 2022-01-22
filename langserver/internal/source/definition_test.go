@@ -246,15 +246,7 @@ containers[container] {
 				Text: []byte("n"),
 				File: "src.rego",
 			},
-			expectResult: []*ast.Location{
-				{
-					Row: 4,
-					Col: 13,
-					Offset: len("package main\n\nviolation[msg] {\n	containers[c"),
-					Text: []byte("container"),
-					File: "src.rego",
-				},
-			},
+			expectResult: nil,
 		},
 		"definition has else": {
 			files: map[string]source.File{

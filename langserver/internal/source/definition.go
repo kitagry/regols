@@ -72,10 +72,6 @@ func (p *Project) findElseRule(loc *ast.Location, rule *ast.Rule) *ast.Rule {
 }
 
 func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
-	if t, ok := term.Value.(ast.Ref); ok && len(t) > 1 {
-		term = t[0]
-	}
-
 	// violation[msg]
 	//           ^ this is key
 	if rule.Head.Key != nil {
@@ -228,10 +224,6 @@ func findImportOutsidePolicy(moduleName string, imports []*ast.Import) *ast.Impo
 		}
 	}
 	return nil
-}
-
-func in(target, src *location.Location) bool {
-	return target.Offset >= src.Offset && target.Offset <= (src.Offset+len(src.Text))
 }
 
 func (p *Project) GetRawText(path string) (string, error) {

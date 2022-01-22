@@ -81,7 +81,9 @@ func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.
 
 			switch t := b.Terms.(type) {
 			case *ast.Term:
-				return p.searchTargetTermInTerm(location, t)
+				if in(location, t.Loc()) {
+					return p.searchTargetTermInTerm(location, t)
+				}
 			case []*ast.Term:
 				return p.searchTargetTermInTerms(location, t)
 			}
@@ -142,4 +144,8 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term)
 	default:
 		return nil, fmt.Errorf("not supported type %T: %v\n", v, v)
 	}
+}
+
+func in(target, src *location.Location) bool {
+	return target.Offset >= src.Offset && target.Offset <= (src.Offset+len(src.Text))
 }
