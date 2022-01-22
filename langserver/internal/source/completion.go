@@ -403,15 +403,10 @@ func (p *Project) createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 		itemKind = VariableItem
 	}
 
-	detail := string(rule.Loc().Text)
-	if detail == "default" {
-		detail = rule.String()
-	}
-
 	return CompletionItem{
 		Label:      rule.Head.Name.String(),
 		Kind:       itemKind,
 		InsertText: insertText.String(),
-		Detail:     detail,
+		Detail:     createDocForRule(rule),
 	}
 }
