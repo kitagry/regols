@@ -270,6 +270,41 @@ is_hello(msg) {
 				},
 			},
 		},
+		"completion same package but other file": {
+			files: map[string]source.File{
+				"main.rego": {
+					RowText: `package main
+
+violation [msg] {
+	he
+}`,
+				},
+				"other.rego": {
+					RowText: `package main
+
+hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			location: &ast.Location{
+				Row: 4,
+				Col: 3,
+				Offset: len("package main\n\nviolation [msg] {\n	he"),
+				File: "main.rego",
+				Text: []byte("e"),
+			},
+			expectItems: []source.CompletionItem{
+				{
+					Label:      "hello",
+					Kind:       source.FunctionItem,
+					InsertText: "hello(msg)",
+					Detail: `hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+		},
 		"completion library methods": {
 			files: map[string]source.File{
 				"main.rego": {

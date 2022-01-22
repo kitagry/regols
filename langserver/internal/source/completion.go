@@ -136,22 +136,52 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 			list := p.listCompletionItemsInRule(location, rule)
 			result = append(result, list...)
 		}
-
-		result = append(result, p.listCompletionItemsModuleRules(module.Rules)...)
 	}
 
-	if p.isLibraryTerm(target) {
-		if _, ok := target.Value.(ast.Ref); ok {
-			importRef := p.findPolicyRef(target)
-			policies := p.cache.FindPolicies(importRef)
-			for _, po := range policies {
-				result = append(result, p.listCompletionItemsModuleRules(po.Rules)...)
+	result = append(result, p.listRulesInModule(location, target)...)
+	result = append(result, p.listBuiltinFunction(target)...)
+
+	return result
+}
+
+func (p *Project) listRulesInModule(location *ast.Location, term *ast.Term) []CompletionItem {
+	var searchPackageName ast.Ref
+	if term != nil {
+		searchPackageName = p.findPolicyRef(term)
+	} else {
+		module := p.GetModule(location.File)
+		if module == nil {
+			return nil
+		}
+		searchPackageName = module.Package.Path
+	}
+	searchModules := p.cache.FindPolicies(searchPackageName)
+	if len(searchModules) == 0 {
+		return nil
+	}
+
+	return p.listCompletionItemsModules(searchModules)
+}
+
+func (p *Project) listCompletionItemsModules(modules []*ast.Module) []CompletionItem {
+	exists := make(map[string]CompletionItem, 0)
+	for _, m := range modules {
+		for _, r := range m.Rules {
+			item := p.createRuleCompletionItem(r)
+			alreadyItem, ok := exists[item.Label]
+			if !ok {
+				exists[item.Label] = item
+				continue
 			}
+			alreadyItem.Detail += "\n\n" + item.Detail
+			exists[alreadyItem.Label] = alreadyItem
 		}
 	}
 
-	result = append(result, p.listBuiltinFunction(target)...)
-
+	result := make([]CompletionItem, 0)
+	for _, item := range exists {
+		result = append(result, item)
+	}
 	return result
 }
 
@@ -224,26 +254,6 @@ func (p *Project) listCompletionItemsInTerm(loc *ast.Location, term *ast.Term) [
 			Label: v.String(),
 			Kind:  VariableItem,
 		})
-	}
-	return result
-}
-
-func (p *Project) listCompletionItemsModuleRules(rules []*ast.Rule) []CompletionItem {
-	exists := make(map[string]CompletionItem, 0)
-	for _, r := range rules {
-		item := p.createRuleCompletionItem(r)
-		alreadyItem, ok := exists[item.Label]
-		if !ok {
-			exists[item.Label] = item
-			continue
-		}
-		alreadyItem.Detail += "\n\n" + item.Detail
-		exists[alreadyItem.Label] = alreadyItem
-	}
-
-	result := make([]CompletionItem, 0, len(rules))
-	for _, item := range exists {
-		result = append(result, item)
 	}
 	return result
 }
