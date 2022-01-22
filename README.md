@@ -36,3 +36,4 @@ lspconfig.regols.setup{}
 - [x] textDocument/formatting
 - [x] textDocument/definition
 - [x] textDocument/completion
+- [x] textDocument/hover
