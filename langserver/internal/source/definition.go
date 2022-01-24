@@ -7,10 +7,9 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ast/location"
 )
 
-func (p *Project) LookupDefinition(location *location.Location) ([]*ast.Location, error) {
+func (p *Project) LookupDefinition(location *ast.Location) ([]*ast.Location, error) {
 	targetTerm, err := p.SearchTargetTerm(location)
 	if err != nil {
 		return nil, err
