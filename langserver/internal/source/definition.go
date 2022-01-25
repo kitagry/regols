@@ -44,6 +44,9 @@ func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
 			}
 		}
 	}
+	if isImportTerm(term) {
+		return p.findImportDefinitions(term)
+	}
 	return p.findDefinitionInModule(term, path)
 }
 
@@ -239,4 +242,33 @@ func (p *Project) GetRawText(path string) (string, error) {
 	var buf bytes.Buffer
 	buf.ReadFrom(f)
 	return buf.String(), nil
+}
+
+// import data.xxx
+//        ^ is import term
+func isImportTerm(term *ast.Term) bool {
+	val, ok := term.Value.(ast.Ref)
+	if !ok {
+		return false
+	}
+
+	if len(val) == 0 {
+		return false
+	}
+
+	return ast.Var("data").Equal(val[0].Value)
+}
+
+func (p *Project) findImportDefinitions(term *ast.Term) []*ast.Location {
+	val, ok := term.Value.(ast.Ref)
+	if !ok {
+		return nil
+	}
+
+	modules := p.cache.FindPolicies(val)
+	result := make([]*ast.Location, len(modules))
+	for i, m := range modules {
+		result[i] = m.Package.Loc()
+	}
+	return result
 }

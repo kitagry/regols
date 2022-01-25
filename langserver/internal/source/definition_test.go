@@ -7,13 +7,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ast/location"
 )
 
 func TestLookupDefinition(t *testing.T) {
 	tests := map[string]struct {
 		files        map[string]source.File
-		location     *location.Location
+		location     *ast.Location
 		expectResult []*ast.Location
 		expectErr    error
 	}{
@@ -28,7 +27,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 5,
 				Col: 8,
 				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	msg = m"),
@@ -56,7 +55,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 5,
 				Col: 2,
 				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	m"),
@@ -84,7 +83,7 @@ test(msg) = test {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 5,
 				Col: 2,
 				Offset: len("package main\n\ntest(msg) = test {\n	msg == \"hello\"\n	t"),
@@ -119,7 +118,7 @@ other_method(msg) {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 4,
 				Col: 5,
 				Offset: len("package main\n\nviolation[msg] {\n	othe"),
@@ -156,7 +155,7 @@ method(msg) {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 6,
 				Col: 6,
 				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib.m"),
@@ -186,7 +185,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 6,
 				Col: 2,
 				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
@@ -214,7 +213,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 4,
 				Col: 2,
 				Offset: len("package main\n\nviolation[msg] {\n	m"),
@@ -239,7 +238,7 @@ containers[container] {
 }`,
 				},
 			},
-			location: &location.Location{
+			location: &ast.Location{
 				Row: 5,
 				Col: 12,
 				Offset: len("package main\n\nviolation[msg] {\n	containers[container]\n	container.n}"),
@@ -347,6 +346,34 @@ authorize = "allow" {
 					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	m"),
 					Text: []byte("msg"),
 					File: "src.rego",
+				},
+			},
+		},
+		"jump to import file": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+import data.lib`,
+				},
+				"lib.rego": {
+					RowText: `package lib`,
+				},
+			},
+			location: &ast.Location{
+				Row:    3,
+				Col:    13,
+				Offset: len("package main\n\nimport data.l"),
+				Text:   []byte("l"),
+				File:   "src.rego",
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    1,
+					Col:    1,
+					Offset: len(""),
+					Text:   []byte("package"),
+					File:   "lib.rego",
 				},
 			},
 		},

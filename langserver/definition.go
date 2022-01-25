@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast/location"
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -45,7 +45,7 @@ func (h *handler) lookupIdent(ctx context.Context, uri lsp.DocumentURI, position
 	return result, nil
 }
 
-func (h *handler) toOPALocation(position lsp.Position, uri lsp.DocumentURI) *location.Location {
+func (h *handler) toOPALocation(position lsp.Position, uri lsp.DocumentURI) *ast.Location {
 	path := documentURIToURI(uri)
 	rawText, ok := h.project.GetFile(path)
 	if !ok {
@@ -58,7 +58,7 @@ func (h *handler) toOPALocation(position lsp.Position, uri lsp.DocumentURI) *loc
 	}
 	startInd += position.Character
 
-	return &location.Location{
+	return &ast.Location{
 		Row:    position.Line + 1,
 		Col:    position.Character + 1,
 		Offset: startInd,
@@ -66,7 +66,7 @@ func (h *handler) toOPALocation(position lsp.Position, uri lsp.DocumentURI) *loc
 	}
 }
 
-func toLspLocation(location *location.Location, rawText string) lsp.Location {
+func toLspLocation(location *ast.Location, rawText string) lsp.Location {
 	if location == nil {
 		return lsp.Location{Range: lsp.Range{Start: lsp.Position{}, End: lsp.Position{}}}
 	}
@@ -79,7 +79,12 @@ func toLspLocation(location *location.Location, rawText string) lsp.Location {
 	toEndText := rawText[:endOffset]
 	line := strings.Count(toEndText, "\n")
 	newLineInd := strings.LastIndex(toEndText, "\n")
-	char := len(toEndText[newLineInd:]) - 1
+	var char int
+	if newLineInd == -1 {
+		char = len(toEndText)
+	} else {
+		char = len(toEndText[newLineInd:]) - 1
+	}
 
 	return lsp.Location{
 		Range: lsp.Range{
