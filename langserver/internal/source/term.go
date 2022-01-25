@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ast/location"
 )
 
-func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term, err error) {
+func (p *Project) SearchTargetTerm(location *ast.Location) (term *ast.Term, err error) {
 	// When parse err like following, we should term as "lib.".
 	// module doesn't have `lib.`. we should get `lib` var, and then we change it as ref `lib.`
 	// ```
@@ -30,6 +29,17 @@ func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term,
 
 	if policy.Module == nil {
 		return nil, nil
+	}
+
+	for _, imp := range policy.Module.Imports {
+		if imp.Path == nil || !in(location, imp.Path.Loc()) {
+			continue
+		}
+		term, err = p.searchTargetTermInImport(location, imp)
+		if err != nil {
+			return nil, err
+		}
+		break
 	}
 
 	for _, r := range policy.Module.Rules {
@@ -67,7 +77,14 @@ func (p *Project) SearchTargetTerm(location *location.Location) (term *ast.Term,
 	return term, err
 }
 
-func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.Rule) (*ast.Term, error) {
+func (p *Project) searchTargetTermInImport(location *ast.Location, imp *ast.Import) (*ast.Term, error) {
+	if in(location, imp.Path.Loc()) {
+		return imp.Path, nil
+	}
+	return nil, nil
+}
+
+func (p *Project) searchTargetTermInRule(location *ast.Location, rule *ast.Rule) (*ast.Term, error) {
 	for rule != nil {
 		if rule.Head != nil {
 			if rule.Head.Value != nil && in(location, rule.Head.Value.Loc()) {
@@ -93,7 +110,7 @@ func (p *Project) searchTargetTermInRule(location *location.Location, rule *ast.
 	return nil, nil
 }
 
-func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*ast.Term) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerms(location *ast.Location, terms []*ast.Term) (*ast.Term, error) {
 	for _, t := range terms {
 		if in(location, t.Loc()) {
 			return p.searchTargetTermInTerm(location, t)
@@ -102,7 +119,7 @@ func (p *Project) searchTargetTermInTerms(location *location.Location, terms []*
 	return nil, nil
 }
 
-func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term) (*ast.Term, error) {
+func (p *Project) searchTargetTermInTerm(loc *ast.Location, term *ast.Term) (*ast.Term, error) {
 	switch v := term.Value.(type) {
 	case ast.Call:
 		return p.searchTargetTermInTerms(loc, []*ast.Term(v))
@@ -146,6 +163,6 @@ func (p *Project) searchTargetTermInTerm(loc *location.Location, term *ast.Term)
 	}
 }
 
-func in(target, src *location.Location) bool {
+func in(target, src *ast.Location) bool {
 	return target.Offset >= src.Offset && target.Offset <= (src.Offset+len(src.Text))
 }

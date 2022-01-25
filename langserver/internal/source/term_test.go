@@ -270,6 +270,53 @@ violation[msg] {
 			},
 			expectTerm: nil,
 		},
+		"searchTerm in import": {
+			files: map[string]source.File{
+				"src.rego": {
+					RowText: `package main
+
+import data.lib`,
+				},
+			},
+			location: &ast.Location{
+				Row:    3,
+				Col:    13,
+				Offset: len("package main\n\nimport data.l"),
+				Text:   []byte("l"),
+				File:   "src.rego",
+			},
+			expectTerm: &ast.Term{
+				Location: &ast.Location{
+					Row:    3,
+					Col:    8,
+					Offset: len("package main\n\nimport d"),
+					Text:   []byte("data.lib"),
+					File:   "src.rego",
+				},
+				Value: ast.Ref{
+					&ast.Term{
+						Value: ast.Var("data"),
+						Location: &ast.Location{
+							Row:    3,
+							Col:    8,
+							Offset: len("package main\n\nimport d"),
+							Text:   []byte("data"),
+							File:   "src.rego",
+						},
+					},
+					&ast.Term{
+						Value: ast.String("lib"),
+						Location: &ast.Location{
+							Row:    3,
+							Col:    13,
+							Offset: len("package main\n\nimport data.l"),
+							Text:   []byte("lib"),
+							File:   "src.rego",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
