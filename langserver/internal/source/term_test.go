@@ -1,6 +1,7 @@
 package source_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -33,7 +34,7 @@ violation[msg] {
 				Location: &ast.Location{
 					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nviolation[msg] {\n	m"),
+					Offset: len("package main\n\nviolation[msg] {\n	"),
 					Text: []byte("msg"),
 					File: "main.rego",
 				},
@@ -68,7 +69,7 @@ violation[msg] {
 				Location: &ast.Location{
 					Row: 6,
 					Col: 2,
-					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	"),
 					Text: []byte("lib."),
 					File: "main.rego",
 				},
@@ -77,7 +78,7 @@ violation[msg] {
 						Location: &ast.Location{
 							Row: 6,
 							Col: 2,
-							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	"),
 							Text: []byte("lib"),
 							File: "main.rego",
 						},
@@ -86,8 +87,8 @@ violation[msg] {
 					{
 						Location: &ast.Location{
 							Row: 6,
-							Col: 2,
-							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
+							Col: 4,
+							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib"),
 							Text: []byte(""),
 							File: "main.rego",
 						},
@@ -127,7 +128,7 @@ violation[msg] {
 				Location: &ast.Location{
 					Row: 6,
 					Col: 2,
-					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	"),
 					Text: []byte("lib"),
 					File: "main.rego",
 				},
@@ -179,7 +180,7 @@ authorize = "allow" {
 				Location: &ast.Location{
 					Row: 8,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
@@ -201,7 +202,7 @@ authorize = input {
 				Location: &ast.Location{
 					Row:    3,
 					Col:    13,
-					Offset: len("package main\n\nauthorize = i"),
+					Offset: len("package main\n\nauthorize = "),
 					Text:   []byte("input"),
 					File:   "src.rego",
 				},
@@ -238,7 +239,7 @@ import data.lib`,
 				Location: &ast.Location{
 					Row:    3,
 					Col:    8,
-					Offset: len("package main\n\nimport d"),
+					Offset: len("package main\n\nimport "),
 					Text:   []byte("data.lib"),
 					File:   "src.rego",
 				},
@@ -248,7 +249,7 @@ import data.lib`,
 						Location: &ast.Location{
 							Row:    3,
 							Col:    8,
-							Offset: len("package main\n\nimport d"),
+							Offset: len("package main\n\nimport "),
 							Text:   []byte("data"),
 							File:   "src.rego",
 						},
@@ -258,7 +259,7 @@ import data.lib`,
 						Location: &ast.Location{
 							Row:    3,
 							Col:    13,
-							Offset: len("package main\n\nimport data.l"),
+							Offset: len("package main\n\nimport data."),
 							Text:   []byte("lib"),
 							File:   "src.rego",
 						},
@@ -288,7 +289,9 @@ import data.lib`,
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(tt.expectTerm, term); diff != "" {
+			if diff := cmp.Diff(tt.expectTerm, term, cmp.Comparer(func(x, y *ast.Term) bool {
+				return reflect.DeepEqual(x, y)
+			})); diff != "" {
 				t.Errorf("SearchTargetTerm result diff (-expect, +got)\n%s", diff)
 			}
 		})

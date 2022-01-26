@@ -67,8 +67,14 @@ func (p *Project) SearchTargetTerm(location *ast.Location) (term *ast.Term, err 
 				Value: ast.Ref{
 					term,
 					{
-						Location: location,
-						Value:    ast.String(""),
+						Location: &ast.Location{
+							Row:    location.Row,
+							Col:    location.Col,
+							Offset: location.Offset,
+							Text:   []byte{},
+							File:   location.File,
+						},
+						Value: ast.String(""),
 					},
 				},
 			}
