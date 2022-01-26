@@ -28,7 +28,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "m", "main.rego"),
+			createLocation: createLocation(4, 2, "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 4,
@@ -63,7 +63,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 5, ".", "main.rego"),
+			createLocation: createLocation(6, 5, "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -108,7 +108,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 5, ".", "main.rego"),
+			createLocation: createLocation(6, 5, "main.rego"),
 		},
 		"library term is itself": {
 			files: map[string]source.File{
@@ -122,7 +122,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "l", "main.rego"),
+			createLocation: createLocation(6, 2, "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -148,7 +148,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "m", "src.rego"),
+			createLocation: createLocation(6, 2, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -174,7 +174,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(8, 2, "m", "src.rego"),
+			createLocation: createLocation(8, 2, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 8,
@@ -196,7 +196,7 @@ authorize = input {
 }`,
 				},
 			},
-			createLocation: createLocation(3, 13, "i", "src.rego"),
+			createLocation: createLocation(3, 13, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row:    3,
@@ -222,7 +222,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 12, "w", "src_test.rego"),
+			createLocation: createLocation(4, 12, "src_test.rego"),
 			expectTerm:     nil,
 		},
 		"searchTerm in import": {
@@ -233,7 +233,7 @@ violation[msg] {
 import data.lib`,
 				},
 			},
-			createLocation: createLocation(3, 13, "i", "src.rego"),
+			createLocation: createLocation(3, 13, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row:    3,
@@ -295,7 +295,7 @@ import data.lib`,
 	}
 }
 
-func createLocation(row, col int, text, file string) createLocationFunc {
+func createLocation(row, col int, file string) createLocationFunc {
 	return func(files map[string]source.File) *ast.Location {
 		rawText := files[file].RowText
 
@@ -305,11 +305,16 @@ func createLocation(row, col int, text, file string) createLocationFunc {
 		}
 		offset += col
 
+		var text []byte
+		if offset > 0 && offset <= len(rawText) {
+			text = []byte{rawText[offset-1]}
+		}
+
 		return &ast.Location{
 			Row:    row,
 			Col:    col,
 			Offset: offset,
-			Text:   []byte(text),
+			Text:   text,
 			File:   file,
 		}
 	}

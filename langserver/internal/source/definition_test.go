@@ -27,7 +27,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 8, "m", "src.rego"),
+			createLocation: createLocation(5, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 4,
@@ -49,7 +49,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 2, "m", "src.rego"),
+			createLocation: createLocation(5, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -71,7 +71,7 @@ test(msg) = test {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 2, "t", "src.rego"),
+			createLocation: createLocation(5, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -100,7 +100,7 @@ other_method(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 5, "e", "src.rego"),
+			createLocation: createLocation(4, 5, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -131,7 +131,7 @@ method(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 6, "m", "src.rego"),
+			createLocation: createLocation(6, 6, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -155,7 +155,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "l", "src.rego"),
+			createLocation: createLocation(6, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -177,7 +177,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "m", "src.rego"),
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectResult:   []*ast.Location{},
 			expectErr:      nil,
 		},
@@ -196,7 +196,7 @@ containers[container] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 12, "n", "src.rego"),
+			createLocation: createLocation(5, 12, "src.rego"),
 			expectResult:   nil,
 		},
 		"definition has else": {
@@ -216,7 +216,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 8, "m", "src.rego"),
+			createLocation: createLocation(5, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 4,
@@ -244,7 +244,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(8, 8, "m", "src.rego"),
+			createLocation: createLocation(8, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 7,
@@ -272,7 +272,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(11, 8, "m", "src.rego"),
+			createLocation: createLocation(11, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 10,
@@ -294,7 +294,7 @@ import data.lib`,
 					RowText: `package lib`,
 				},
 			},
-			createLocation: createLocation(3, 13, "l", "src.rego"),
+			createLocation: createLocation(3, 13, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    1,

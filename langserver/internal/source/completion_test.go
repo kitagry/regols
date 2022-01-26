@@ -24,7 +24,7 @@ func TestProject_ListCompletionItems(t *testing.T) {
 					RowText: `package lib`,
 				},
 			},
-			createLocation: createLocation(3, 1, "", "src.rego"),
+			createLocation: createLocation(3, 1, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "import data.lib",
@@ -45,7 +45,7 @@ import data.lib
 					RowText: `package lib`,
 				},
 			},
-			createLocation: createLocation(4, 1, "", "src.rego"),
+			createLocation: createLocation(4, 1, "src.rego"),
 			expectItems:    []source.CompletionItem{},
 		},
 		"completion for else": {
@@ -62,7 +62,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(8, 3, "s", "src.rego"),
+			createLocation: createLocation(8, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "ms",
@@ -84,7 +84,7 @@ mem_multiple("E") = 1000000000000000000000
 mem_multiple("P") = 1000000000000000000`,
 				},
 			},
-			createLocation: createLocation(4, 3, "e", "src.rego"),
+			createLocation: createLocation(4, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "mem_multiple",
@@ -141,7 +141,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "m", "main.rego"),
+			createLocation: createLocation(6, 2, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
@@ -169,7 +169,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "l", "main.rego"),
+			createLocation: createLocation(6, 2, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "lib",
@@ -188,7 +188,7 @@ violation [msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 2, "c", "main.rego"),
+			createLocation: createLocation(5, 2, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "container",
@@ -210,7 +210,7 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "i", "main.rego"),
+			createLocation: createLocation(4, 2, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "is_hello",
@@ -239,7 +239,7 @@ hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 3, "e", "main.rego"),
+			createLocation: createLocation(4, 3, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "hello",
@@ -270,7 +270,7 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 6, "i", "main.rego"),
+			createLocation: createLocation(6, 6, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "is_hello",
@@ -293,7 +293,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 2, "m", "main.rego"),
+			createLocation: createLocation(5, 2, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
@@ -312,7 +312,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 1, "	", "main.rego"),
+			createLocation: createLocation(5, 1, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
@@ -339,7 +339,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "j", "main.rego"),
+			createLocation: createLocation(4, 2, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "json.patch",
@@ -359,7 +359,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 7, "p", "main.rego"),
+			createLocation: createLocation(4, 7, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "patch",
@@ -375,7 +375,7 @@ violation[msg] {
 					RowText: ``,
 				},
 			},
-			createLocation: createLocation(1, 1, "", "test/core.rego"),
+			createLocation: createLocation(1, 1, "test/core.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "package core",
@@ -400,7 +400,7 @@ violation[msg] {
 					RowText: `p`,
 				},
 			},
-			createLocation: createLocation(1, 1, "p", "test/core.rego"),
+			createLocation: createLocation(1, 1, "test/core.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "package core",
@@ -420,7 +420,7 @@ violation[msg] {
 					RowText: `p`,
 				},
 			},
-			createLocation: createLocation(1, 1, "p", "aaa/bbb_test.rego"),
+			createLocation: createLocation(1, 1, "aaa/bbb_test.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "package aaa",
@@ -455,7 +455,7 @@ is_hello(msg) {
 default is_test = true`,
 				},
 			},
-			createLocation: createLocation(4, 3, "s", "src.rego"),
+			createLocation: createLocation(4, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "is_hello",

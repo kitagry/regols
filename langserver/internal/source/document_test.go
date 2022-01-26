@@ -27,7 +27,7 @@ method(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "m", "src.rego"),
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content: `method(msg) {
@@ -49,7 +49,7 @@ violation[msg] {
 default item = "hello"`,
 				},
 			},
-			createLocation: createLocation(4, 2, "i", "src.rego"),
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  `default item = "hello"`,
@@ -67,7 +67,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "s", "src.rego"),
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  "sprintf(string, array[any])",
@@ -91,7 +91,7 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 7, "i", "src.rego"),
+			createLocation: createLocation(4, 7, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  "json.is_valid(string)",
