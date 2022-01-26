@@ -5,14 +5,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
-	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestProject_ListCompletionItems(t *testing.T) {
 	tests := map[string]struct {
-		files       map[string]source.File
-		location    *ast.Location
-		expectItems []source.CompletionItem
+		files          map[string]source.File
+		createLocation createLocationFunc
+		expectItems    []source.CompletionItem
 	}{
 		"import completion": {
 			files: map[string]source.File{
@@ -25,13 +24,7 @@ func TestProject_ListCompletionItems(t *testing.T) {
 					RowText: `package lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    1,
-				Offset: len("pacakge src\n\n"),
-				Text:   []byte(""),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 1, "", "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "import data.lib",
@@ -52,14 +45,8 @@ import data.lib
 					RowText: `package lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    4,
-				Col:    1,
-				Offset: len("pacakge src\n\nimport data.lib"),
-				Text:   []byte(""),
-				File:   "src.rego",
-			},
-			expectItems: []source.CompletionItem{},
+			createLocation: createLocation(4, 1, "", "src.rego"),
+			expectItems:    []source.CompletionItem{},
 		},
 		"completion for else": {
 			files: map[string]source.File{
@@ -75,13 +62,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 8,
-				Col: 3,
-				Offset: len("package src\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	ms := \"deny\"\n	ms"),
-				Text: []byte("s"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(8, 3, "s", "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "ms",
@@ -103,13 +84,7 @@ mem_multiple("E") = 1000000000000000000000
 mem_multiple("P") = 1000000000000000000`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 3,
-				Offset: len("package src\n\nfunc() {\n	me"),
-				Text: []byte("e"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 3, "e", "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "mem_multiple",
@@ -130,7 +105,8 @@ mem_multiple("P") = 1000000000000000000`,
 				t.Fatal(err)
 			}
 
-			got, err := project.ListCompletionItems(tt.location)
+			location := tt.createLocation(tt.files)
+			got, err := project.ListCompletionItems(location)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -149,9 +125,9 @@ mem_multiple("P") = 1000000000000000000`,
 
 func TestProject_ListCompletionItemsExist(t *testing.T) {
 	tests := map[string]struct {
-		files       map[string]source.File
-		location    *ast.Location
-		expectItems []source.CompletionItem
+		files          map[string]source.File
+		createLocation createLocationFunc
+		expectItems    []source.CompletionItem
 	}{
 		"list up in rule": {
 			files: map[string]source.File{
@@ -165,13 +141,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	ms := hoge(fuga)\n	message := hoge(fuga)\nm"),
-				File: "main.rego",
-				Text: []byte("m"),
-			},
+			createLocation: createLocation(6, 2, "m", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
@@ -199,13 +169,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
-				File: "main.rego",
-				Text: []byte("l"),
-			},
+			createLocation: createLocation(6, 2, "l", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "lib",
@@ -224,13 +188,7 @@ violation [msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\nviolation [msg] {\n	containers[container]\n	c"),
-				File: "main.rego",
-				Text: []byte("c"),
-			},
+			createLocation: createLocation(5, 2, "c", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "container",
@@ -252,13 +210,7 @@ is_hello(msg) {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation [msg] {\n	i"),
-				File: "main.rego",
-				Text: []byte("i"),
-			},
+			createLocation: createLocation(4, 2, "i", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "is_hello",
@@ -287,13 +239,7 @@ hello(msg) {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 3,
-				Offset: len("package main\n\nviolation [msg] {\n	he"),
-				File: "main.rego",
-				Text: []byte("e"),
-			},
+			createLocation: createLocation(4, 3, "e", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "hello",
@@ -324,13 +270,7 @@ is_hello(msg) {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 6,
-				Offset: len("package main\n\nimport data.lib\n\nviolation [msg] {\n	lib.i"),
-				File: "main.rego",
-				Text: []byte("i"),
-			},
+			createLocation: createLocation(6, 6, "i", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "is_hello",
@@ -353,13 +293,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	msg = \"hello\"\n	m"),
-				Text: []byte("m"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(5, 2, "m", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
@@ -378,13 +312,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 1,
-				Offset: len("package main\n\nviolation[msg] {\n	msg = \"hello\"\n	"),
-				Text: []byte("	"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(5, 1, "	", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "msg",
@@ -411,13 +339,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	j"),
-				Text: []byte("j"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(4, 2, "j", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "json.patch",
@@ -437,13 +359,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 7,
-				Offset: len("package main\n\nviolation[msg] {\n	json.p"),
-				Text: []byte("p"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(4, 7, "p", "main.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "patch",
@@ -459,13 +375,7 @@ violation[msg] {
 					RowText: ``,
 				},
 			},
-			location: &ast.Location{
-				Row:    1,
-				Col:    1,
-				Offset: 0,
-				Text:   nil,
-				File:   "test/core.rego",
-			},
+			createLocation: createLocation(1, 1, "", "test/core.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "package core",
@@ -490,13 +400,7 @@ violation[msg] {
 					RowText: `p`,
 				},
 			},
-			location: &ast.Location{
-				Row:    1,
-				Col:    1,
-				Offset: 1,
-				Text:   []byte("p"),
-				File:   "test/core.rego",
-			},
+			createLocation: createLocation(1, 1, "p", "test/core.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "package core",
@@ -516,13 +420,7 @@ violation[msg] {
 					RowText: `p`,
 				},
 			},
-			location: &ast.Location{
-				Row:    1,
-				Col:    1,
-				Offset: 1,
-				Text:   []byte("p"),
-				File:   "aaa/bbb_test.rego",
-			},
+			createLocation: createLocation(1, 1, "p", "aaa/bbb_test.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "package aaa",
@@ -557,13 +455,7 @@ is_hello(msg) {
 default is_test = true`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 3,
-				Offset: len("pacakge src\n\nviolation[msg] {	is"),
-				Text: []byte("s"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 3, "s", "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "is_hello",
@@ -590,7 +482,8 @@ default is_test = true`,
 				t.Fatal(err)
 			}
 
-			got, err := project.ListCompletionItems(tt.location)
+			location := tt.createLocation(tt.files)
+			got, err := project.ListCompletionItems(location)
 			if err != nil {
 				t.Fatal(err)
 			}

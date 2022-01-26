@@ -11,10 +11,10 @@ import (
 
 func TestLookupDefinition(t *testing.T) {
 	tests := map[string]struct {
-		files        map[string]source.File
-		location     *ast.Location
-		expectResult []*ast.Location
-		expectErr    error
+		files          map[string]source.File
+		createLocation createLocationFunc
+		expectResult   []*ast.Location
+		expectErr      error
 	}{
 		"in file definition": {
 			files: map[string]source.File{
@@ -27,13 +27,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 8,
-				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	msg = m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 8, "m", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 4,
@@ -55,13 +49,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 2, "m", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -83,13 +71,7 @@ test(msg) = test {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\ntest(msg) = test {\n	msg == \"hello\"\n	t"),
-				Text: []byte{'t'},
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 2, "t", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -118,13 +100,7 @@ other_method(msg) {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 5,
-				Offset: len("package main\n\nviolation[msg] {\n	othe"),
-				Text: []byte("e"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 5, "e", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -155,13 +131,7 @@ method(msg) {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 6,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib.m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(6, 6, "m", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -185,13 +155,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
-				Text: []byte("l"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(6, 2, "l", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -213,15 +177,9 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
-			expectResult: []*ast.Location{},
-			expectErr:    nil,
+			createLocation: createLocation(4, 2, "m", "src.rego"),
+			expectResult:   []*ast.Location{},
+			expectErr:      nil,
 		},
 		"with not library but has dot": {
 			files: map[string]source.File{
@@ -238,14 +196,8 @@ containers[container] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 12,
-				Offset: len("package main\n\nviolation[msg] {\n	containers[container]\n	container.n}"),
-				Text: []byte("n"),
-				File: "src.rego",
-			},
-			expectResult: nil,
+			createLocation: createLocation(5, 12, "n", "src.rego"),
+			expectResult:   nil,
 		},
 		"definition has else": {
 			files: map[string]source.File{
@@ -264,13 +216,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 8,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 8, "m", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 4,
@@ -298,13 +244,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 8,
-				Col: 8,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(8, 8, "m", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 7,
@@ -332,13 +272,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 11,
-				Col: 8,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	msg := \"out\"\n	trace(m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(11, 8, "m", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 10,
@@ -360,13 +294,7 @@ import data.lib`,
 					RowText: `package lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    13,
-				Offset: len("package main\n\nimport data.l"),
-				Text:   []byte("l"),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 13, "l", "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    1,
@@ -386,7 +314,8 @@ import data.lib`,
 				t.Fatalf("failed to create project: %v", err)
 			}
 
-			got, err := p.LookupDefinition(tt.location)
+			location := tt.createLocation(tt.files)
+			got, err := p.LookupDefinition(location)
 			if !errors.Is(err, tt.expectErr) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
 			}

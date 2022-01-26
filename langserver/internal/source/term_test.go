@@ -1,6 +1,7 @@
 package source_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -8,12 +9,14 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+type createLocationFunc func(files map[string]source.File) *ast.Location
+
 func TestProject_SearchTargetTerm(t *testing.T) {
 	tests := map[string]struct {
-		files      map[string]source.File
-		updateFile map[string]source.File
-		location   *ast.Location
-		expectTerm *ast.Term
+		files          map[string]source.File
+		updateFile     map[string]source.File
+		createLocation createLocationFunc
+		expectTerm     *ast.Term
 	}{
 		"search term": {
 			files: map[string]source.File{
@@ -25,13 +28,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	m"),
-				Text: []byte("m"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(4, 2, "m", "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 4,
@@ -66,13 +63,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 5,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-				Text: []byte("."),
-				File: "main.rego",
-			},
+			createLocation: createLocation(6, 5, ".", "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -117,13 +108,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 5,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-				Text: []byte("."),
-				File: "main.rego",
-			},
+			createLocation: createLocation(6, 5, ".", "main.rego"),
 		},
 		"library term is itself": {
 			files: map[string]source.File{
@@ -137,13 +122,7 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
-				Text: []byte("l"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(6, 2, "l", "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -169,13 +148,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(6, 2, "m", "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -201,13 +174,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 8,
-				Col: 2,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(8, 2, "m", "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 8,
@@ -229,13 +196,7 @@ authorize = input {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    13,
-				Offset: len("package main\n\nauthorize = i"),
-				Text:   []byte("i"),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 13, "i", "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row:    3,
@@ -261,14 +222,8 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 12,
-				Offset: len("package main\n\ntest_hoge {\n	violation w"),
-				Text: []byte("w"),
-				File: "src_test.rego",
-			},
-			expectTerm: nil,
+			createLocation: createLocation(4, 12, "w", "src_test.rego"),
+			expectTerm:     nil,
 		},
 		"searchTerm in import": {
 			files: map[string]source.File{
@@ -278,13 +233,7 @@ violation[msg] {
 import data.lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    13,
-				Offset: len("package main\n\nimport data.l"),
-				Text:   []byte("l"),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 13, "i", "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row:    3,
@@ -333,7 +282,8 @@ import data.lib`,
 				}
 			}
 
-			term, err := project.SearchTargetTerm(tt.location)
+			location := tt.createLocation(tt.files)
+			term, err := project.SearchTargetTerm(location)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -342,5 +292,25 @@ import data.lib`,
 				t.Errorf("SearchTargetTerm result diff (-expect, +got)\n%s", diff)
 			}
 		})
+	}
+}
+
+func createLocation(row, col int, text, file string) createLocationFunc {
+	return func(files map[string]source.File) *ast.Location {
+		rawText := files[file].RowText
+
+		offset := 0
+		for i := 1; i < row; i++ {
+			offset += strings.Index(rawText[offset:], "\n") + 1
+		}
+		offset += col
+
+		return &ast.Location{
+			Row:    row,
+			Col:    col,
+			Offset: offset,
+			Text:   []byte(text),
+			File:   file,
+		}
 	}
 }
