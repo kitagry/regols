@@ -2,6 +2,7 @@ package source_test
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,7 +33,7 @@ violation[msg] {
 				{
 					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nviolation[msg] {\n	m"),
+					Offset: len("package main\n\nviolation[msg] {\n	"),
 					Text: []byte("m"),
 					File: "src.rego",
 				},
@@ -54,13 +55,13 @@ violation[msg] {
 				{
 					Row:    3,
 					Col:    11,
-					Offset: len("package main\n\nviolation[m"),
+					Offset: len("package main\n\nviolation["),
 					Text:   []byte("msg"),
 					File:   "src.rego",
 				},
 			},
 		},
-		"": {
+		"in file definition in head value": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -76,7 +77,7 @@ test(msg) = test {
 				{
 					Row:    3,
 					Col:    13,
-					Offset: len("package main\n\ntest(msg) = t"),
+					Offset: len("package main\n\ntest(msg) = "),
 					Text:   []byte("test"),
 					File:   "src.rego",
 				},
@@ -105,7 +106,7 @@ other_method(msg) {
 				{
 					Row:    3,
 					Col:    1,
-					Offset: len("package main\n\no"),
+					Offset: len("package main\n\n"),
 					Text: []byte("other_method(msg) {\n	msg == \"hello\"\n}"),
 					File: "src2.rego",
 				},
@@ -136,7 +137,7 @@ method(msg) {
 				{
 					Row:    3,
 					Col:    1,
-					Offset: len("package lib\n\nm"),
+					Offset: len("package lib\n\n"),
 					Text: []byte("method(msg) {\n	msg == \"hello\"\n}"),
 					File: "lib.rego",
 				},
@@ -160,7 +161,7 @@ violation[msg] {
 				{
 					Row:    3,
 					Col:    13,
-					Offset: len("package main\n\nimport data.l"),
+					Offset: len("package main\n\nimport data."),
 					Text:   []byte("lib"),
 					File:   "src.rego",
 				},
@@ -221,7 +222,7 @@ authorize = "allow" {
 				{
 					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
@@ -249,7 +250,7 @@ authorize = "allow" {
 				{
 					Row: 7,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
@@ -277,7 +278,7 @@ authorize = "allow" {
 				{
 					Row: 10,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
@@ -320,7 +321,9 @@ import data.lib`,
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
 			}
 
-			if diff := cmp.Diff(tt.expectResult, got); diff != "" {
+			if diff := cmp.Diff(tt.expectResult, got, cmp.Comparer(func(x, y []*ast.Location) bool {
+				return reflect.DeepEqual(x, y)
+			})); diff != "" {
 				t.Errorf("LookupDefinition result diff (-expect +got):\n%s", diff)
 			}
 		})
