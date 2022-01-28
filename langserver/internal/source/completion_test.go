@@ -5,33 +5,28 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
-	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestProject_ListCompletionItems(t *testing.T) {
-	tests := map[string]struct {
-		files       map[string]source.File
-		location    *ast.Location
-		expectItems []source.CompletionItem
-	}{
-		"import completion": {
+type completionTestCase struct {
+	files          map[string]source.File
+	createLocation createLocationFunc
+	expectItems    []source.CompletionItem
+}
+
+func TestProject_ListCompletionItemsStrict(t *testing.T) {
+	tests := map[string]completionTestCase{
+		"Should list import libarary": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 `,
 				},
 				"lib.rego": {
-					RowText: `package lib`,
+					RawText: `package lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    1,
-				Offset: len("pacakge src\n\n"),
-				Text:   []byte(""),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 1, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "import data.lib",
@@ -40,31 +35,25 @@ func TestProject_ListCompletionItems(t *testing.T) {
 				},
 			},
 		},
-		"ignore already imported": {
+		"Should not list already imported library": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 import data.lib
 `,
 				},
 				"lib.rego": {
-					RowText: `package lib`,
+					RawText: `package lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    4,
-				Col:    1,
-				Offset: len("pacakge src\n\nimport data.lib"),
-				Text:   []byte(""),
-				File:   "src.rego",
-			},
-			expectItems: []source.CompletionItem{},
+			createLocation: createLocation(4, 1, "src.rego"),
+			expectItems:    []source.CompletionItem{},
 		},
-		"completion for else": {
+		"Should list variable in else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 authorize = "allow" {
 	msg := "allow"
@@ -75,13 +64,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 8,
-				Col: 3,
-				Offset: len("package src\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	ms := \"deny\"\n	ms"),
-				Text: []byte("s"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(8, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "ms",
@@ -89,10 +72,10 @@ authorize = "allow" {
 				},
 			},
 		},
-		"completion other args": {
+		"Should list rule as single item though the rule args are different": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 func() {
 	me
@@ -103,13 +86,7 @@ mem_multiple("E") = 1000000000000000000000
 mem_multiple("P") = 1000000000000000000`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 3,
-				Offset: len("package src\n\nfunc() {\n	me"),
-				Text: []byte("e"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label:      "mem_multiple",
@@ -121,6 +98,22 @@ mem_multiple("P") = 1000000000000000000`,
 				},
 			},
 		},
+		"Should not list duplicated variables": {
+			files: map[string]source.File{
+				"main.rego": {
+					RawText: `package main
+
+violation[msg] {
+	msg = "hello"
+	ms
+}`,
+				},
+			},
+			createLocation: createLocation(5, 3, "main.rego"),
+			expectItems: []source.CompletionItem{
+				{Label: "msg", Kind: source.VariableItem},
+			},
+		},
 	}
 
 	for n, tt := range tests {
@@ -130,7 +123,8 @@ mem_multiple("P") = 1000000000000000000`,
 				t.Fatal(err)
 			}
 
-			got, err := project.ListCompletionItems(tt.location)
+			location := tt.createLocation(tt.files)
+			got, err := project.ListCompletionItems(location)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -148,100 +142,66 @@ mem_multiple("P") = 1000000000000000000`,
 }
 
 func TestProject_ListCompletionItemsExist(t *testing.T) {
-	tests := map[string]struct {
-		files       map[string]source.File
-		location    *ast.Location
-		expectItems []source.CompletionItem
-	}{
-		"list up in rule": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+	tests := map[string]map[string]completionTestCase{
+		"List variables": {
+			"Should list variables in the same rule": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 violation[msg] {
 	ms := hoge(fuga)
-	message := hoge(fuga)
+	messages[message]
 	m
 }`,
+					},
+				},
+				createLocation: createLocation(6, 2, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "msg", Kind: source.VariableItem},
+					{Label: "ms", Kind: source.VariableItem},
+					{Label: "message", Kind: source.VariableItem},
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	ms := hoge(fuga)\n	message := hoge(fuga)\nm"),
-				File: "main.rego",
-				Text: []byte("m"),
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label: "msg",
-					Kind:  source.VariableItem,
-				},
-				{
-					Label: "ms",
-					Kind:  source.VariableItem,
-				},
-				{
-					Label: "message",
-					Kind:  source.VariableItem,
-				},
-			},
-		},
-		"completion package": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+			"Should list imported variables": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 import data.lib
 
 violation[msg] {
 	l
 }`,
+					},
+				},
+				createLocation: createLocation(6, 2, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "lib", Kind: source.PackageItem},
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
-				File: "main.rego",
-				Text: []byte("l"),
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label: "lib",
-					Kind:  source.PackageItem,
-				},
-			},
-		},
-		"completion ast.Ref body": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+			"Should list variables when the prefix text is none": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
-violation [msg] {
-	containers[container]
-	c
+violation[msg] {
+	msg = "hello"
+
 }`,
+					},
 				},
-			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\nviolation [msg] {\n	containers[container]\n	c"),
-				File: "main.rego",
-				Text: []byte("c"),
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label: "container",
-					Kind:  source.VariableItem,
+				createLocation: createLocation(5, 1, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "msg", Kind: source.VariableItem},
 				},
 			},
 		},
-		"completion methods": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+		"List rules": {
+			"Should list rules in the same file": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 violation [msg] {
 	i
@@ -250,355 +210,206 @@ violation [msg] {
 is_hello(msg) {
 	msg == "hello"
 }`,
+					},
 				},
-			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation [msg] {\n	i"),
-				File: "main.rego",
-				Text: []byte("i"),
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "is_hello",
-					Kind:       source.FunctionItem,
-					InsertText: "is_hello(msg)",
-					Detail: `is_hello(msg) {
+				createLocation: createLocation(4, 2, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label:      "is_hello",
+						Kind:       source.FunctionItem,
+						InsertText: "is_hello(msg)",
+						Detail: `is_hello(msg) {
 	msg == "hello"
 }`,
+					},
 				},
 			},
-		},
-		"completion same package but other file": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+			"Should list rules in the same package but other file": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 violation [msg] {
 	he
 }`,
-				},
-				"other.rego": {
-					RowText: `package main
+					},
+					"other.rego": {
+						RawText: `package main
 
 hello(msg) {
 	msg == "hello"
 }`,
+					},
 				},
-			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 3,
-				Offset: len("package main\n\nviolation [msg] {\n	he"),
-				File: "main.rego",
-				Text: []byte("e"),
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "hello",
-					Kind:       source.FunctionItem,
-					InsertText: "hello(msg)",
-					Detail: `hello(msg) {
+				createLocation: createLocation(4, 3, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label:      "hello",
+						Kind:       source.FunctionItem,
+						InsertText: "hello(msg)",
+						Detail: `hello(msg) {
 	msg == "hello"
 }`,
+					},
 				},
 			},
-		},
-		"completion library methods": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+			"Should list rules in the other packages": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 import data.lib
 
 violation [msg] {
 	lib.i
 }`,
-				},
-				"lib.rego": {
-					RowText: `package lib
+					},
+					"lib.rego": {
+						RawText: `package lib
 
 is_hello(msg) {
 	msg == "hello"
 }`,
+					},
 				},
-			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 6,
-				Offset: len("package main\n\nimport data.lib\n\nviolation [msg] {\n	lib.i"),
-				File: "main.rego",
-				Text: []byte("i"),
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "is_hello",
-					Kind:       source.FunctionItem,
-					InsertText: "is_hello(msg)",
-					Detail: `is_hello(msg) {
+				createLocation: createLocation(6, 6, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label:      "is_hello",
+						Kind:       source.FunctionItem,
+						InsertText: "is_hello(msg)",
+						Detail: `is_hello(msg) {
 	msg == "hello"
 }`,
+					},
 				},
 			},
-		},
-		"delete duplicate": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
-
-violation[msg] {
-	msg = "hello"
-	m
-}`,
-				},
-			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	msg = \"hello\"\n	m"),
-				Text: []byte("m"),
-				File: "main.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label: "msg",
-					Kind:  source.VariableItem,
-				},
-			},
-		},
-		"not prefix term": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
-
-violation[msg] {
-	msg = "hello"
-
-}`,
-				},
-			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 1,
-				Offset: len("package main\n\nviolation[msg] {\n	msg = \"hello\"\n	"),
-				Text: []byte("	"),
-				File: "main.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label: "msg",
-					Kind:  source.VariableItem,
-				},
-				{
-					Label:      "violation",
-					Kind:       source.FunctionItem,
-					InsertText: "violation[msg]",
-					Detail: `violation[msg] {
-	msg = "hello"
-
-}`,
-				},
-			},
-		},
-		"built-in completion": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+			"Should list built-in functions": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 violation[msg] {
 	j
 }`,
+					},
+				},
+				createLocation: createLocation(4, 2, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label:      "json.patch",
+						Kind:       source.BuiltinFunctionItem,
+						Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
+						InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]])",
+					},
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	j"),
-				Text: []byte("j"),
-				File: "main.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "json.patch",
-					Kind:       source.BuiltinFunctionItem,
-					Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
-					InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]])",
-				},
-			},
-		},
-		"built-in completion with prefix": {
-			files: map[string]source.File{
-				"main.rego": {
-					RowText: `package main
+			"Should list built-in functions when prefix include `.` character": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
 
 violation[msg] {
 	json.p
 }`,
+					},
+				},
+				createLocation: createLocation(4, 7, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label:      "patch",
+						Kind:       source.BuiltinFunctionItem,
+						Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
+						InsertText: "patch(any, array[object<op: string, path: any>[any: any]])",
+					},
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 7,
-				Offset: len("package main\n\nviolation[msg] {\n	json.p"),
-				Text: []byte("p"),
-				File: "main.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "patch",
-					Kind:       source.BuiltinFunctionItem,
-					Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
-					InsertText: "patch(any, array[object<op: string, path: any>[any: any]])",
-				},
-			},
-		},
-		"completion empty package": {
-			files: map[string]source.File{
-				"test/core.rego": {
-					RowText: ``,
-				},
-			},
-			location: &ast.Location{
-				Row:    1,
-				Col:    1,
-				Offset: 0,
-				Text:   nil,
-				File:   "test/core.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "package core",
-					Kind:       source.PackageItem,
-					InsertText: "package core",
-				},
-				{
-					Label:      "package test",
-					Kind:       source.PackageItem,
-					InsertText: "package test",
-				},
-				{
-					Label:      "package test.core",
-					Kind:       source.PackageItem,
-					InsertText: "package test.core",
-				},
-			},
-		},
-		"completion no package": {
-			files: map[string]source.File{
-				"test/core.rego": {
-					RowText: `p`,
-				},
-			},
-			location: &ast.Location{
-				Row:    1,
-				Col:    1,
-				Offset: 1,
-				Text:   []byte("p"),
-				File:   "test/core.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "package core",
-					Kind:       source.PackageItem,
-					InsertText: "package core",
-				},
-				{
-					Label:      "package test",
-					Kind:       source.PackageItem,
-					InsertText: "package test",
-				},
-			},
-		},
-		"completion test package": {
-			files: map[string]source.File{
-				"aaa/bbb_test.rego": {
-					RowText: `p`,
-				},
-			},
-			location: &ast.Location{
-				Row:    1,
-				Col:    1,
-				Offset: 1,
-				Text:   []byte("p"),
-				File:   "aaa/bbb_test.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "package aaa",
-					Kind:       source.PackageItem,
-					InsertText: "package aaa",
-				},
-				{
-					Label:      "package bbb",
-					Kind:       source.PackageItem,
-					InsertText: "package bbb",
-				},
-				{
-					Label:      "package aaa.bbb",
-					Kind:       source.PackageItem,
-					InsertText: "package aaa.bbb",
-				},
-			},
-		},
-		"some rule is function and others is variable": {
-			files: map[string]source.File{
-				"src.rego": {
-					RowText: `package src
+			"Should list rule which is variable": {
+				files: map[string]source.File{
+					"src.rego": {
+						RawText: `package src
 
 violation[msg] {
 	is
 }
 
-is_hello(msg) {
-	msg == "hello"
-}
-
 default is_test = true`,
+					},
+				},
+				createLocation: createLocation(4, 3, "src.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label:      "is_test",
+						Kind:       source.VariableItem,
+						InsertText: "is_test",
+						Detail:     "default is_test = true",
+					},
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 3,
-				Offset: len("pacakge src\n\nviolation[msg] {	is"),
-				Text: []byte("s"),
-				File: "src.rego",
-			},
-			expectItems: []source.CompletionItem{
-				{
-					Label:      "is_hello",
-					Kind:       source.FunctionItem,
-					InsertText: "is_hello(msg)",
-					Detail: `is_hello(msg) {
-	msg == "hello"
-}`,
+		},
+		"List packages": {
+			"Should list package items when the file is empty": {
+				files: map[string]source.File{
+					"test/core.rego": {
+						RawText: ``,
+					},
 				},
-				{
-					Label:      "is_test",
-					Kind:       source.VariableItem,
-					InsertText: "is_test",
-					Detail:     "default is_test = true",
+				createLocation: createLocation(1, 1, "test/core.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "package core", Kind: source.PackageItem, InsertText: "package core"},
+					{Label: "package test", Kind: source.PackageItem, InsertText: "package test"},
+					{Label: "package test.core", Kind: source.PackageItem, InsertText: "package test.core"},
+				},
+			},
+			"Should list package items when the file has no package": {
+				files: map[string]source.File{
+					"test/core.rego": {
+						RawText: `p`,
+					},
+				},
+				createLocation: createLocation(1, 1, "test/core.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "package core", Kind: source.PackageItem, InsertText: "package core"},
+					{Label: "package test", Kind: source.PackageItem, InsertText: "package test"},
+				},
+			},
+			`Should list package items which remove "_test"`: {
+				files: map[string]source.File{
+					"aaa/bbb_test.rego": {
+						RawText: `p`,
+					},
+				},
+				createLocation: createLocation(1, 1, "aaa/bbb_test.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "package aaa", Kind: source.PackageItem, InsertText: "package aaa"},
+					{Label: "package bbb", Kind: source.PackageItem, InsertText: "package bbb"},
+					{Label: "package aaa.bbb", Kind: source.PackageItem, InsertText: "package aaa.bbb"},
 				},
 			},
 		},
 	}
 
-	for n, tt := range tests {
+	for n, cases := range tests {
 		t.Run(n, func(t *testing.T) {
-			project, err := source.NewProjectWithFiles(tt.files)
-			if err != nil {
-				t.Fatal(err)
-			}
+			for n, tt := range cases {
+				t.Run(n, func(t *testing.T) {
+					project, err := source.NewProjectWithFiles(tt.files)
+					if err != nil {
+						t.Fatal(err)
+					}
 
-			got, err := project.ListCompletionItems(tt.location)
-			if err != nil {
-				t.Fatal(err)
-			}
+					location := tt.createLocation(tt.files)
+					got, err := project.ListCompletionItems(location)
+					if err != nil {
+						t.Fatal(err)
+					}
 
-			for _, e := range tt.expectItems {
-				if !in(e, got) {
-					t.Errorf("ListCompletionItems should return item %v, got %v", e, got)
-				}
+					for _, e := range tt.expectItems {
+						if !in(e, got) {
+							t.Errorf("ListCompletionItems should return item %v, got %v", e, got)
+						}
+					}
+				})
 			}
 		})
 	}

@@ -5,19 +5,18 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
-	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestProject_TermDocument(t *testing.T) {
 	tests := map[string]struct {
-		files      map[string]source.File
-		location   *ast.Location
-		expectDocs []source.Document
+		files          map[string]source.File
+		createLocation createLocationFunc
+		expectDocs     []source.Document
 	}{
-		"document in same file method": {
+		"Should document rule in same file method": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	method(msg)
@@ -28,13 +27,7 @@ method(msg) {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package src\n\nviolation[msg] {	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content: `method(msg) {
@@ -44,10 +37,10 @@ method(msg) {
 				},
 			},
 		},
-		"default can show all": {
+		"Should document rule which has default": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	item
@@ -56,13 +49,7 @@ violation[msg] {
 default item = "hello"`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package src\n\nviolation[msg] {	i"),
-				Text: []byte("i"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  `default item = "hello"`,
@@ -70,23 +57,17 @@ default item = "hello"`,
 				},
 			},
 		},
-		"builtin function": {
+		"Should document builtin function": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	sprintf("msg: %s", [msg])
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package src\n\nviolation[msg] {	s"),
-				Text: []byte("s"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  "sprintf(string, array[any])",
@@ -100,23 +81,17 @@ See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-funct
 				},
 			},
 		},
-		"builtin function with ref": {
+		`Should document builtin function which has "." text`: {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	json.is_valid("{}")
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 7,
-				Offset: len("package src\n\nviolation[msg] {	json.i"),
-				Text: []byte("i"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 7, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  "json.is_valid(string)",
@@ -139,7 +114,8 @@ See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-funct
 				t.Fatal(err)
 			}
 
-			docs, err := project.TermDocument(tt.location)
+			location := tt.createLocation(tt.files)
+			docs, err := project.TermDocument(location)
 			if err != nil {
 				t.Fatal(err)
 			}

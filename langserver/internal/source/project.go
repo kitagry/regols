@@ -11,7 +11,7 @@ type Project struct {
 }
 
 type File struct {
-	RowText string
+	RawText string
 	Version int
 }
 
@@ -30,7 +30,7 @@ func NewProject(rootPath string) (*Project, error) {
 func NewProjectWithFiles(files map[string]File) (*Project, error) {
 	ff := make(map[string]string, len(files))
 	for path, file := range files {
-		ff[path] = file.RowText
+		ff[path] = file.RawText
 	}
 
 	cache, err := cache.NewGlobalCacheWithFiles(ff)

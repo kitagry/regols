@@ -2,6 +2,7 @@ package source_test
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -11,15 +12,15 @@ import (
 
 func TestLookupDefinition(t *testing.T) {
 	tests := map[string]struct {
-		files        map[string]source.File
-		location     *ast.Location
-		expectResult []*ast.Location
-		expectErr    error
+		files          map[string]source.File
+		createLocation createLocationFunc
+		expectResult   []*ast.Location
+		expectErr      error
 	}{
-		"in file definition": {
+		"Should return variable definition in the rule": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	m := "hello"
@@ -27,27 +28,21 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 8,
-				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	msg = m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nviolation[msg] {\n	m"),
+					Offset: len("package main\n\nviolation[msg] {\n	"),
 					Text: []byte("m"),
 					File: "src.rego",
 				},
 			},
 		},
-		"in file definition in args": {
+		"Should return definition in the rule's key": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	m := "hello"
@@ -55,27 +50,21 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	m := \"hello\"\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
 					Col:    11,
-					Offset: len("package main\n\nviolation[m"),
+					Offset: len("package main\n\nviolation["),
 					Text:   []byte("msg"),
 					File:   "src.rego",
 				},
 			},
 		},
-		"": {
+		"Should return definition in the rule's value": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 test(msg) = test {
 	msg == "hello"
@@ -83,27 +72,21 @@ test(msg) = test {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 2,
-				Offset: len("package main\n\ntest(msg) = test {\n	msg == \"hello\"\n	t"),
-				Text: []byte{'t'},
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
 					Col:    13,
-					Offset: len("package main\n\ntest(msg) = t"),
+					Offset: len("package main\n\ntest(msg) = "),
 					Text:   []byte("test"),
 					File:   "src.rego",
 				},
 			},
 		},
-		"same library but other file definition": {
+		"Should return definition in the other file but same package": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	other_method("hello")
@@ -111,34 +94,28 @@ violation[msg] {
 }`,
 				},
 				"src2.rego": {
-					RowText: `package main
+					RawText: `package main
 
 other_method(msg) {
 	msg == "hello"
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 5,
-				Offset: len("package main\n\nviolation[msg] {\n	othe"),
-				Text: []byte("e"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(4, 5, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
 					Col:    1,
-					Offset: len("package main\n\no"),
+					Offset: len("package main\n\n"),
 					Text: []byte("other_method(msg) {\n	msg == \"hello\"\n}"),
 					File: "src2.rego",
 				},
 			},
 		},
-		"in library definition": {
+		"Should return definition in the other package": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -148,34 +125,28 @@ violation[msg] {
 }`,
 				},
 				"lib.rego": {
-					RowText: `package lib
+					RawText: `package lib
 
 method(msg) {
 	msg == "hello"
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 6,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib.m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(6, 6, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
 					Col:    1,
-					Offset: len("package lib\n\nm"),
+					Offset: len("package lib\n\n"),
 					Text: []byte("method(msg) {\n	msg == \"hello\"\n}"),
 					File: "lib.rego",
 				},
 			},
 		},
-		"jump to import": {
+		"Should return import sentense definition": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -185,27 +156,21 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
-				Text: []byte("l"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(6, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
 					Col:    13,
-					Offset: len("package main\n\nimport data.l"),
+					Offset: len("package main\n\nimport data."),
 					Text:   []byte("lib"),
 					File:   "src.rego",
 				},
 			},
 		},
-		"no definition because itself is definition": {
+		"Should not return definition when itself is definition": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	m := "hello"
@@ -213,20 +178,14 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
-			expectResult: []*ast.Location{},
-			expectErr:    nil,
+			createLocation: createLocation(4, 2, "src.rego"),
+			expectResult:   []*ast.Location{},
+			expectErr:      nil,
 		},
-		"with not library but has dot": {
+		`Should not return definition when the item has "." but not library`: {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	containers[container]
@@ -238,19 +197,13 @@ containers[container] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 12,
-				Offset: len("package main\n\nviolation[msg] {\n	containers[container]\n	container.n}"),
-				Text: []byte("n"),
-				File: "src.rego",
-			},
-			expectResult: nil,
+			createLocation: createLocation(5, 12, "src.rego"),
+			expectResult:   nil,
 		},
-		"definition has else": {
+		"Should return definition when the rule has else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg := "allow"
@@ -264,27 +217,21 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 5,
-				Col: 8,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(5, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
 			},
 		},
-		"else definition": {
+		"Should return definition when the term is in the else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg := "allow"
@@ -298,27 +245,21 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 8,
-				Col: 8,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(8, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 7,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
 			},
 		},
-		"else of else definition": {
+		"Should return definition when the term is in the else of else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg := "allow"
@@ -332,41 +273,29 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 11,
-				Col: 8,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	msg := \"out\"\n	trace(m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(11, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row: 10,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
 			},
 		},
-		"jump to import file": {
+		"Should return definition from import sentense to the library file": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib`,
 				},
 				"lib.rego": {
-					RowText: `package lib`,
+					RawText: `package lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    13,
-				Offset: len("package main\n\nimport data.l"),
-				Text:   []byte("l"),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 13, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    1,
@@ -386,12 +315,15 @@ import data.lib`,
 				t.Fatalf("failed to create project: %v", err)
 			}
 
-			got, err := p.LookupDefinition(tt.location)
+			location := tt.createLocation(tt.files)
+			got, err := p.LookupDefinition(location)
 			if !errors.Is(err, tt.expectErr) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
 			}
 
-			if diff := cmp.Diff(tt.expectResult, got); diff != "" {
+			if diff := cmp.Diff(tt.expectResult, got, cmp.Comparer(func(x, y []*ast.Location) bool {
+				return reflect.DeepEqual(x, y)
+			})); diff != "" {
 				t.Errorf("LookupDefinition result diff (-expect +got):\n%s", diff)
 			}
 		})

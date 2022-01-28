@@ -1,6 +1,8 @@
 package source_test
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -8,45 +10,41 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+type createLocationFunc func(files map[string]source.File) *ast.Location
+
 func TestProject_SearchTargetTerm(t *testing.T) {
 	tests := map[string]struct {
-		files      map[string]source.File
-		updateFile map[string]source.File
-		location   *ast.Location
-		expectTerm *ast.Term
+		files          map[string]source.File
+		updateFile     map[string]source.File
+		createLocation createLocationFunc
+		expectTerm     *ast.Term
 	}{
-		"search term": {
+		"Should find term in the body": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	msg = "hello"
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 2,
-				Offset: len("package main\n\nviolation[msg] {\n	m"),
-				Text: []byte("m"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(4, 2, "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 4,
 					Col: 2,
-					Offset: len("package main\n\nviolation[msg] {\n	m"),
+					Offset: len("package main\n\nviolation[msg] {\n	"),
 					Text: []byte("msg"),
 					File: "main.rego",
 				},
 				Value: ast.Var("msg"),
 			},
 		},
-		"search ref of library": {
+		"Should find term when the update has not correct ast": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -57,7 +55,7 @@ violation[msg] {
 			},
 			updateFile: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -66,18 +64,12 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 5,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-				Text: []byte("."),
-				File: "main.rego",
-			},
+			createLocation: createLocation(6, 5, "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
 					Col: 2,
-					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	"),
 					Text: []byte("lib."),
 					File: "main.rego",
 				},
@@ -86,7 +78,7 @@ violation[msg] {
 						Location: &ast.Location{
 							Row: 6,
 							Col: 2,
-							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	"),
 							Text: []byte("lib"),
 							File: "main.rego",
 						},
@@ -95,8 +87,8 @@ violation[msg] {
 					{
 						Location: &ast.Location{
 							Row: 6,
-							Col: 2,
-							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
+							Col: 4,
+							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib"),
 							Text: []byte(""),
 							File: "main.rego",
 						},
@@ -105,10 +97,10 @@ violation[msg] {
 				},
 			},
 		},
-		"when parse error first, can't find term": {
+		"Should not find term when the file has not correct ast at first": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -117,18 +109,12 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 5,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-				Text: []byte("."),
-				File: "main.rego",
-			},
+			createLocation: createLocation(6, 5, "main.rego"),
 		},
-		"library term is itself": {
+		"Should return only library name when the location is on the left side": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -137,28 +123,22 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
-				Text: []byte("l"),
-				File: "main.rego",
-			},
+			createLocation: createLocation(6, 2, "main.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
 					Col: 2,
-					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	l"),
+					Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	"),
 					Text: []byte("lib"),
 					File: "main.rego",
 				},
 				Value: ast.Var("lib"),
 			},
 		},
-		"searchTerm in else": {
+		"Should find term in the else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg == "allow"
@@ -169,13 +149,7 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 6,
-				Col: 2,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(6, 2, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 6,
@@ -187,10 +161,10 @@ authorize = "allow" {
 				Value: ast.Var("msg"),
 			},
 		},
-		"searchTerm in else of else": {
+		"Should find term in else of else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg == "allow"
@@ -201,56 +175,44 @@ authorize = "allow" {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 8,
-				Col: 2,
-				Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	m"),
-				Text: []byte("m"),
-				File: "src.rego",
-			},
+			createLocation: createLocation(8, 2, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row: 8,
 					Col: 2,
-					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	m"),
+					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg ==\"allow\"\n} else = \"deny\"  {\n	msg ==\"deny\"\n} else = \"out\"  {\n	"),
 					Text: []byte("msg"),
 					File: "src.rego",
 				},
 				Value: ast.Var("msg"),
 			},
 		},
-		"searchTerm in head value": {
+		"Should find term in the rule's value": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = input {
 	input.message == "allow"
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    13,
-				Offset: len("package main\n\nauthorize = i"),
-				Text:   []byte("i"),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 13, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row:    3,
 					Col:    13,
-					Offset: len("package main\n\nauthorize = i"),
+					Offset: len("package main\n\nauthorize = "),
 					Text:   []byte("input"),
 					File:   "src.rego",
 				},
 				Value: ast.Var("input"),
 			},
 		},
-		"searchTerm with `with`": {
+		"Should not find term `with` clause": {
 			files: map[string]source.File{
 				"src_test.rego": {
-					RowText: `package main
+					RawText: `package main
 
 test_hoge {
 	violation with input as "{}"
@@ -261,35 +223,23 @@ violation[msg] {
 }`,
 				},
 			},
-			location: &ast.Location{
-				Row: 4,
-				Col: 12,
-				Offset: len("package main\n\ntest_hoge {\n	violation w"),
-				Text: []byte("w"),
-				File: "src_test.rego",
-			},
-			expectTerm: nil,
+			createLocation: createLocation(4, 12, "src_test.rego"),
+			expectTerm:     nil,
 		},
-		"searchTerm in import": {
+		"Should find term in the import sentense": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib`,
 				},
 			},
-			location: &ast.Location{
-				Row:    3,
-				Col:    13,
-				Offset: len("package main\n\nimport data.l"),
-				Text:   []byte("l"),
-				File:   "src.rego",
-			},
+			createLocation: createLocation(3, 13, "src.rego"),
 			expectTerm: &ast.Term{
 				Location: &ast.Location{
 					Row:    3,
 					Col:    8,
-					Offset: len("package main\n\nimport d"),
+					Offset: len("package main\n\nimport "),
 					Text:   []byte("data.lib"),
 					File:   "src.rego",
 				},
@@ -299,7 +249,7 @@ import data.lib`,
 						Location: &ast.Location{
 							Row:    3,
 							Col:    8,
-							Offset: len("package main\n\nimport d"),
+							Offset: len("package main\n\nimport "),
 							Text:   []byte("data"),
 							File:   "src.rego",
 						},
@@ -309,7 +259,7 @@ import data.lib`,
 						Location: &ast.Location{
 							Row:    3,
 							Col:    13,
-							Offset: len("package main\n\nimport data.l"),
+							Offset: len("package main\n\nimport data."),
 							Text:   []byte("lib"),
 							File:   "src.rego",
 						},
@@ -327,20 +277,48 @@ import data.lib`,
 			}
 
 			for path, file := range tt.updateFile {
-				err := project.UpdateFile(path, file.RowText, file.Version)
+				err := project.UpdateFile(path, file.RawText, file.Version)
 				if err != nil {
 					t.Fatal(err)
 				}
 			}
 
-			term, err := project.SearchTargetTerm(tt.location)
+			location := tt.createLocation(tt.files)
+			term, err := project.SearchTargetTerm(location)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(tt.expectTerm, term); diff != "" {
+			if diff := cmp.Diff(tt.expectTerm, term, cmp.Comparer(func(x, y *ast.Term) bool {
+				return reflect.DeepEqual(x, y)
+			})); diff != "" {
 				t.Errorf("SearchTargetTerm result diff (-expect, +got)\n%s", diff)
 			}
 		})
+	}
+}
+
+func createLocation(row, col int, file string) createLocationFunc {
+	return func(files map[string]source.File) *ast.Location {
+		rawText := files[file].RawText
+
+		offset := 0
+		for i := 1; i < row; i++ {
+			offset += strings.Index(rawText[offset:], "\n") + 1
+		}
+		offset += col
+
+		var text []byte
+		if offset > 0 && offset <= len(rawText) {
+			text = []byte{rawText[offset-1]}
+		}
+
+		return &ast.Location{
+			Row:    row,
+			Col:    col,
+			Offset: offset,
+			Text:   text,
+			File:   file,
+		}
 	}
 }
