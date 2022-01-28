@@ -17,7 +17,7 @@ func TestLookupDefinition(t *testing.T) {
 		expectResult   []*ast.Location
 		expectErr      error
 	}{
-		"in file definition": {
+		"Should return variable definition in the rule": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -39,7 +39,7 @@ violation[msg] {
 				},
 			},
 		},
-		"in file definition in args": {
+		"Should return definition in the rule's key": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -61,7 +61,7 @@ violation[msg] {
 				},
 			},
 		},
-		"in file definition in head value": {
+		"Should return definition in the rule's value": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -83,7 +83,7 @@ test(msg) = test {
 				},
 			},
 		},
-		"same library but other file definition": {
+		"Should return definition in the other file but same package": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -112,7 +112,7 @@ other_method(msg) {
 				},
 			},
 		},
-		"in library definition": {
+		"Should return definition in the other package": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -143,7 +143,7 @@ method(msg) {
 				},
 			},
 		},
-		"jump to import": {
+		"Should return import sentense definition": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -167,7 +167,7 @@ violation[msg] {
 				},
 			},
 		},
-		"no definition because itself is definition": {
+		"Should not return definition when itself is definition": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -182,7 +182,7 @@ violation[msg] {
 			expectResult:   []*ast.Location{},
 			expectErr:      nil,
 		},
-		"with not library but has dot": {
+		`Should not return definition when the item has "." but not library`: {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -200,7 +200,7 @@ containers[container] {
 			createLocation: createLocation(5, 12, "src.rego"),
 			expectResult:   nil,
 		},
-		"definition has else": {
+		"Should return definition when the rule has else clause": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -228,7 +228,7 @@ authorize = "allow" {
 				},
 			},
 		},
-		"else definition": {
+		"Should return definition when the term is in the else clause": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -256,7 +256,7 @@ authorize = "allow" {
 				},
 			},
 		},
-		"else of else definition": {
+		"Should return definition when the term is in the else of else clause": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -284,7 +284,7 @@ authorize = "allow" {
 				},
 			},
 		},
-		"jump to import file": {
+		"Should return definition from import sentense to the library file": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main

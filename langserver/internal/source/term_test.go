@@ -19,7 +19,7 @@ func TestProject_SearchTargetTerm(t *testing.T) {
 		createLocation createLocationFunc
 		expectTerm     *ast.Term
 	}{
-		"search term": {
+		"Should find term in the body": {
 			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
@@ -41,7 +41,7 @@ violation[msg] {
 				Value: ast.Var("msg"),
 			},
 		},
-		"search ref of library": {
+		"Should find term when the update has not correct ast": {
 			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
@@ -97,7 +97,7 @@ violation[msg] {
 				},
 			},
 		},
-		"when parse error first, can't find term": {
+		"Should not find term when the file has not correct ast at first": {
 			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
@@ -111,7 +111,7 @@ violation[msg] {
 			},
 			createLocation: createLocation(6, 5, "main.rego"),
 		},
-		"library term is itself": {
+		"Should return only library name when the location is on the left side": {
 			files: map[string]source.File{
 				"main.rego": {
 					RowText: `package main
@@ -135,7 +135,7 @@ violation[msg] {
 				Value: ast.Var("lib"),
 			},
 		},
-		"searchTerm in else": {
+		"Should find term in the else clause": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -161,7 +161,7 @@ authorize = "allow" {
 				Value: ast.Var("msg"),
 			},
 		},
-		"searchTerm in else of else": {
+		"Should find term in else of else clause": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -187,7 +187,7 @@ authorize = "allow" {
 				Value: ast.Var("msg"),
 			},
 		},
-		"searchTerm in head value": {
+		"Should find term in the rule's value": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main
@@ -209,7 +209,7 @@ authorize = input {
 				Value: ast.Var("input"),
 			},
 		},
-		"searchTerm with `with`": {
+		"Should not find term `with` clause": {
 			files: map[string]source.File{
 				"src_test.rego": {
 					RowText: `package main
@@ -226,7 +226,7 @@ violation[msg] {
 			createLocation: createLocation(4, 12, "src_test.rego"),
 			expectTerm:     nil,
 		},
-		"searchTerm in import": {
+		"Should find term in the import sentense": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package main

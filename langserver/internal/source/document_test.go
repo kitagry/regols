@@ -13,7 +13,7 @@ func TestProject_TermDocument(t *testing.T) {
 		createLocation createLocationFunc
 		expectDocs     []source.Document
 	}{
-		"document in same file method": {
+		"Should document rule in same file method": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package src
@@ -37,7 +37,7 @@ method(msg) {
 				},
 			},
 		},
-		"default can show all": {
+		"Should document rule which has default": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package src
@@ -57,7 +57,7 @@ default item = "hello"`,
 				},
 			},
 		},
-		"builtin function": {
+		"Should document builtin function": {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package src
@@ -81,7 +81,7 @@ See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-funct
 				},
 			},
 		},
-		"builtin function with ref": {
+		`Should document builtin function which has "." text`: {
 			files: map[string]source.File{
 				"src.rego": {
 					RowText: `package src
