@@ -16,7 +16,7 @@ func TestProject_TermDocument(t *testing.T) {
 		"Should document rule in same file method": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	method(msg)
@@ -40,7 +40,7 @@ method(msg) {
 		"Should document rule which has default": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	item
@@ -60,7 +60,7 @@ default item = "hello"`,
 		"Should document builtin function": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	sprintf("msg: %s", [msg])
@@ -84,7 +84,7 @@ See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-funct
 		`Should document builtin function which has "." text`: {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 violation[msg] {
 	json.is_valid("{}")

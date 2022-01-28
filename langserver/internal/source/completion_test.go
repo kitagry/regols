@@ -18,12 +18,12 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 		"Should list import libarary": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 `,
 				},
 				"lib.rego": {
-					RowText: `package lib`,
+					RawText: `package lib`,
 				},
 			},
 			createLocation: createLocation(3, 1, "src.rego"),
@@ -38,13 +38,13 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 		"Should not list already imported library": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 import data.lib
 `,
 				},
 				"lib.rego": {
-					RowText: `package lib`,
+					RawText: `package lib`,
 				},
 			},
 			createLocation: createLocation(4, 1, "src.rego"),
@@ -53,7 +53,7 @@ import data.lib
 		"Should list variable in else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 authorize = "allow" {
 	msg := "allow"
@@ -75,7 +75,7 @@ authorize = "allow" {
 		"Should list rule as single item though the rule args are different": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package src
+					RawText: `package src
 
 func() {
 	me
@@ -101,7 +101,7 @@ mem_multiple("P") = 1000000000000000000`,
 		"Should not list duplicated variables": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	msg = "hello"
@@ -147,7 +147,7 @@ func TestProject_ListCompletionItemsExist(t *testing.T) {
 			"Should list variables in the same rule": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 violation[msg] {
 	ms := hoge(fuga)
@@ -166,7 +166,7 @@ violation[msg] {
 			"Should list imported variables": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 import data.lib
 
@@ -183,7 +183,7 @@ violation[msg] {
 			"Should list variables when the prefix text is none": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 violation[msg] {
 	msg = "hello"
@@ -201,7 +201,7 @@ violation[msg] {
 			"Should list rules in the same file": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 violation [msg] {
 	i
@@ -227,14 +227,14 @@ is_hello(msg) {
 			"Should list rules in the same package but other file": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 violation [msg] {
 	he
 }`,
 					},
 					"other.rego": {
-						RowText: `package main
+						RawText: `package main
 
 hello(msg) {
 	msg == "hello"
@@ -256,7 +256,7 @@ hello(msg) {
 			"Should list rules in the other packages": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 import data.lib
 
@@ -265,7 +265,7 @@ violation [msg] {
 }`,
 					},
 					"lib.rego": {
-						RowText: `package lib
+						RawText: `package lib
 
 is_hello(msg) {
 	msg == "hello"
@@ -287,7 +287,7 @@ is_hello(msg) {
 			"Should list built-in functions": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 violation[msg] {
 	j
@@ -307,7 +307,7 @@ violation[msg] {
 			"Should list built-in functions when prefix include `.` character": {
 				files: map[string]source.File{
 					"main.rego": {
-						RowText: `package main
+						RawText: `package main
 
 violation[msg] {
 	json.p
@@ -327,7 +327,7 @@ violation[msg] {
 			"Should list rule which is variable": {
 				files: map[string]source.File{
 					"src.rego": {
-						RowText: `package src
+						RawText: `package src
 
 violation[msg] {
 	is
@@ -351,7 +351,7 @@ default is_test = true`,
 			"Should list package items when the file is empty": {
 				files: map[string]source.File{
 					"test/core.rego": {
-						RowText: ``,
+						RawText: ``,
 					},
 				},
 				createLocation: createLocation(1, 1, "test/core.rego"),
@@ -364,7 +364,7 @@ default is_test = true`,
 			"Should list package items when the file has no package": {
 				files: map[string]source.File{
 					"test/core.rego": {
-						RowText: `p`,
+						RawText: `p`,
 					},
 				},
 				createLocation: createLocation(1, 1, "test/core.rego"),
@@ -376,7 +376,7 @@ default is_test = true`,
 			`Should list package items which remove "_test"`: {
 				files: map[string]source.File{
 					"aaa/bbb_test.rego": {
-						RowText: `p`,
+						RawText: `p`,
 					},
 				},
 				createLocation: createLocation(1, 1, "aaa/bbb_test.rego"),

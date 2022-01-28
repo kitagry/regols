@@ -20,7 +20,7 @@ func TestLookupDefinition(t *testing.T) {
 		"Should return variable definition in the rule": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	m := "hello"
@@ -42,7 +42,7 @@ violation[msg] {
 		"Should return definition in the rule's key": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	m := "hello"
@@ -64,7 +64,7 @@ violation[msg] {
 		"Should return definition in the rule's value": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 test(msg) = test {
 	msg == "hello"
@@ -86,7 +86,7 @@ test(msg) = test {
 		"Should return definition in the other file but same package": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	other_method("hello")
@@ -94,7 +94,7 @@ violation[msg] {
 }`,
 				},
 				"src2.rego": {
-					RowText: `package main
+					RawText: `package main
 
 other_method(msg) {
 	msg == "hello"
@@ -115,7 +115,7 @@ other_method(msg) {
 		"Should return definition in the other package": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -125,7 +125,7 @@ violation[msg] {
 }`,
 				},
 				"lib.rego": {
-					RowText: `package lib
+					RawText: `package lib
 
 method(msg) {
 	msg == "hello"
@@ -146,7 +146,7 @@ method(msg) {
 		"Should return import sentense definition": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -170,7 +170,7 @@ violation[msg] {
 		"Should not return definition when itself is definition": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	m := "hello"
@@ -185,7 +185,7 @@ violation[msg] {
 		`Should not return definition when the item has "." but not library`: {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	containers[container]
@@ -203,7 +203,7 @@ containers[container] {
 		"Should return definition when the rule has else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg := "allow"
@@ -231,7 +231,7 @@ authorize = "allow" {
 		"Should return definition when the term is in the else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg := "allow"
@@ -259,7 +259,7 @@ authorize = "allow" {
 		"Should return definition when the term is in the else of else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg := "allow"
@@ -287,12 +287,12 @@ authorize = "allow" {
 		"Should return definition from import sentense to the library file": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib`,
 				},
 				"lib.rego": {
-					RowText: `package lib`,
+					RawText: `package lib`,
 				},
 			},
 			createLocation: createLocation(3, 13, "src.rego"),

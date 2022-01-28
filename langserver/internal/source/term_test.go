@@ -22,7 +22,7 @@ func TestProject_SearchTargetTerm(t *testing.T) {
 		"Should find term in the body": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 violation[msg] {
 	msg = "hello"
@@ -44,7 +44,7 @@ violation[msg] {
 		"Should find term when the update has not correct ast": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -55,7 +55,7 @@ violation[msg] {
 			},
 			updateFile: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -100,7 +100,7 @@ violation[msg] {
 		"Should not find term when the file has not correct ast at first": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -114,7 +114,7 @@ violation[msg] {
 		"Should return only library name when the location is on the left side": {
 			files: map[string]source.File{
 				"main.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib
 
@@ -138,7 +138,7 @@ violation[msg] {
 		"Should find term in the else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg == "allow"
@@ -164,7 +164,7 @@ authorize = "allow" {
 		"Should find term in else of else clause": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = "allow" {
 	msg == "allow"
@@ -190,7 +190,7 @@ authorize = "allow" {
 		"Should find term in the rule's value": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 authorize = input {
 	input.message == "allow"
@@ -212,7 +212,7 @@ authorize = input {
 		"Should not find term `with` clause": {
 			files: map[string]source.File{
 				"src_test.rego": {
-					RowText: `package main
+					RawText: `package main
 
 test_hoge {
 	violation with input as "{}"
@@ -229,7 +229,7 @@ violation[msg] {
 		"Should find term in the import sentense": {
 			files: map[string]source.File{
 				"src.rego": {
-					RowText: `package main
+					RawText: `package main
 
 import data.lib`,
 				},
@@ -277,7 +277,7 @@ import data.lib`,
 			}
 
 			for path, file := range tt.updateFile {
-				err := project.UpdateFile(path, file.RowText, file.Version)
+				err := project.UpdateFile(path, file.RawText, file.Version)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -300,7 +300,7 @@ import data.lib`,
 
 func createLocation(row, col int, file string) createLocationFunc {
 	return func(files map[string]source.File) *ast.Location {
-		rawText := files[file].RowText
+		rawText := files[file].RawText
 
 		offset := 0
 		for i := 1; i < row; i++ {
