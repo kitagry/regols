@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/kitagry/regols/langserver/internal/lsp"
 	"github.com/kitagry/regols/langserver/internal/source"
-	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

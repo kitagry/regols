@@ -267,6 +267,15 @@ import data.lib`,
 				},
 			},
 		},
+		"Should return empty term with empty file": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: ``,
+				},
+			},
+			createLocation: createLocation(1, 0, "src.rego"),
+			expectTerm:     nil,
+		},
 	}
 
 	for n, tt := range tests {

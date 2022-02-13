@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/kitagry/regols/langserver/internal/lsp"
 	"github.com/kitagry/regols/langserver/internal/source"
-	"github.com/sourcegraph/go-lsp"
 )
 
 func TestCompletionItemToLspCompletionList(t *testing.T) {
@@ -18,28 +18,44 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 		"client snippet support": {
 			items: []source.CompletionItem{
 				{
-					Label:      "method",
-					Kind:       source.FunctionItem,
-					Detail:     "detail",
-					InsertText: "method(a, b)",
+					Label:  "method",
+					Kind:   source.FunctionItem,
+					Detail: "detail",
+					TextEdit: &source.TextEdit{
+						Row:  1,
+						Col:  1,
+						Text: "method(a, b)",
+					},
 				},
 				{
-					Label:      "method",
-					Kind:       source.FunctionItem,
-					Detail:     "detail",
-					InsertText: "method()",
+					Label:  "method",
+					Kind:   source.FunctionItem,
+					Detail: "detail",
+					TextEdit: &source.TextEdit{
+						Row:  1,
+						Col:  1,
+						Text: "method()",
+					},
 				},
 				{
-					Label:      "mes",
-					Kind:       source.FunctionItem,
-					Detail:     "detail",
-					InsertText: "mes[a]",
+					Label:  "mes",
+					Kind:   source.FunctionItem,
+					Detail: "detail",
+					TextEdit: &source.TextEdit{
+						Row:  1,
+						Col:  1,
+						Text: "mes[a]",
+					},
 				},
 				{
-					Label:      "json.patch",
-					Kind:       source.BuiltinFunctionItem,
-					Detail:     "(any, array[object<op: string, path: any>[any: any]]) => any",
-					InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]] => any)",
+					Label:  "json.patch",
+					Kind:   source.BuiltinFunctionItem,
+					Detail: "(any, array[object<op: string, path: any>[any: any]]) => any",
+					TextEdit: &source.TextEdit{
+						Row:  1,
+						Col:  1,
+						Text: "json.patch(any, array[object<op: string, path: any>[any: any]] => any)",
+					},
 				},
 			},
 			isSnippetSupport: true,
@@ -51,28 +67,76 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 						Kind:             lsp.CIKFunction,
 						Detail:           "detail",
 						InsertTextFormat: lsp.ITFSnippet,
-						InsertText:       "method(${1:a}, ${2:b})",
+						TextEdit: &lsp.TextEdit{
+							Range: lsp.Range{
+								Start: lsp.Position{
+									Line:      0,
+									Character: 0,
+								},
+								End: lsp.Position{
+									Line:      0,
+									Character: len("method(a, b)"),
+								},
+							},
+							NewText: "method(${1:a}, ${2:b})",
+						},
 					},
 					{
 						Label:            "method",
 						Kind:             lsp.CIKFunction,
 						Detail:           "detail",
 						InsertTextFormat: lsp.ITFSnippet,
-						InsertText:       "method()",
+						TextEdit: &lsp.TextEdit{
+							Range: lsp.Range{
+								Start: lsp.Position{
+									Line:      0,
+									Character: 0,
+								},
+								End: lsp.Position{
+									Line:      0,
+									Character: len("method()"),
+								},
+							},
+							NewText: "method()",
+						},
 					},
 					{
 						Label:            "mes",
 						Kind:             lsp.CIKFunction,
 						Detail:           "detail",
 						InsertTextFormat: lsp.ITFSnippet,
-						InsertText:       "mes[${1:a}]",
+						TextEdit: &lsp.TextEdit{
+							Range: lsp.Range{
+								Start: lsp.Position{
+									Line:      0,
+									Character: 0,
+								},
+								End: lsp.Position{
+									Line:      0,
+									Character: len("mes[a]"),
+								},
+							},
+							NewText: "mes[${1:a}]",
+						},
 					},
 					{
 						Label:            "json.patch",
 						Kind:             lsp.CIKFunction,
 						Detail:           "(any, array[object<op: string, path: any>[any: any]]) => any",
 						InsertTextFormat: lsp.ITFSnippet,
-						InsertText:       "json.patch(${1:any}, ${2:array[object<op: string, path: any>[any: any]] => any})",
+						TextEdit: &lsp.TextEdit{
+							Range: lsp.Range{
+								Start: lsp.Position{
+									Line:      0,
+									Character: 0,
+								},
+								End: lsp.Position{
+									Line:      0,
+									Character: len("json.patch(any, array[object<op: string, path: any>[any: any]] => any)"),
+								},
+							},
+							NewText: "json.patch(${1:any}, ${2:array[object<op: string, path: any>[any: any]] => any})",
+						},
 					},
 				},
 			},
@@ -80,10 +144,14 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 		"client doesn't support snippet": {
 			items: []source.CompletionItem{
 				{
-					Label:      "method",
-					Kind:       source.FunctionItem,
-					Detail:     "detail",
-					InsertText: "method(a, b)",
+					Label:  "method",
+					Kind:   source.FunctionItem,
+					Detail: "detail",
+					TextEdit: &source.TextEdit{
+						Row:  1,
+						Col:  1,
+						Text: "method(a, b)",
+					},
 				},
 			},
 			isSnippetSupport: false,

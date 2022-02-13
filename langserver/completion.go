@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kitagry/regols/langserver/internal/lsp"
 	"github.com/kitagry/regols/langserver/internal/source"
-	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -66,8 +66,8 @@ func createCompletionItem(completionItem source.CompletionItem, insertTextFormat
 		Label:            completionItem.Label,
 		Kind:             kindToLspKind(completionItem.Kind),
 		Detail:           completionItem.Detail,
-		InsertText:       createSnippetText(completionItem.InsertText, completionItem.Kind),
-		InsertTextFormat: insertTextFormat,
+		InsertTextFormat: lsp.ITFSnippet,
+		TextEdit:         createTextEdit(completionItem.TextEdit, completionItem.Kind),
 	}
 }
 
@@ -81,6 +81,25 @@ func kindToLspKind(kind source.CompletionKind) lsp.CompletionItemKind {
 		return lsp.CIKFunction
 	default:
 		return lsp.CIKText
+	}
+}
+
+func createTextEdit(textEdit *source.TextEdit, kind source.CompletionKind) *lsp.TextEdit {
+	if textEdit == nil {
+		return nil
+	}
+	return &lsp.TextEdit{
+		Range: lsp.Range{
+			Start: lsp.Position{
+				Line:      textEdit.Row - 1,
+				Character: textEdit.Col - 1,
+			},
+			End: lsp.Position{
+				Line:      textEdit.Row - 1,
+				Character: textEdit.Col - 1 + len(textEdit.Text),
+			},
+		},
+		NewText: createSnippetText(textEdit.Text, kind),
 	}
 }
 

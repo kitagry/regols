@@ -3,8 +3,8 @@ package langserver
 import (
 	"context"
 
+	"github.com/kitagry/regols/langserver/internal/lsp"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/sourcegraph/go-lsp"
 )
 
 func (h *handler) diagnostic() {

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/kitagry/regols/langserver/internal/lsp"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/sourcegraph/go-lsp"
 )
 
 func TestToLspLocation(t *testing.T) {
