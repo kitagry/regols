@@ -139,12 +139,6 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 
 	if !isLibraryTerm(target) {
 		result = append(result, p.listLibraryVariables(location, module)...)
-		for _, i := range module.Imports {
-			result = append(result, CompletionItem{
-				Label: importToLabel(i),
-				Kind:  PackageItem,
-			})
-		}
 
 		rule := p.findRuleForTerm(location)
 		if rule != nil {
@@ -161,11 +155,15 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 
 func (p *Project) listLibraryVariables(loc *ast.Location, module *ast.Module) []CompletionItem {
 	result := make([]CompletionItem, 0)
-	alreadyImported := make([]ast.Ref, len(module.Imports))
-	for i, imp := range module.Imports {
-		alreadyImported[i] = imp.Path.Value.(ast.Ref)
+	// Already imported libraries
+	for _, i := range module.Imports {
+		result = append(result, CompletionItem{
+			Label: importToLabel(i),
+			Kind:  PackageItem,
+		})
 	}
 
+	// Unimported libraries
 	pkgs := p.cache.GetPackages()
 	for _, p := range pkgs {
 		if !isImported(p, module.Imports) && !p.Equal(module.Package.Path) {
