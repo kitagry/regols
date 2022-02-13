@@ -186,6 +186,74 @@ violation[msg] {
 					{Label: "lib", Kind: source.PackageItem},
 				},
 			},
+			"Should list imported variables without import statement": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
+
+violation[msg] {
+	l
+}`,
+					},
+					"lib.rego": {
+						RawText: `package lib`,
+					},
+				},
+				createLocation: createLocation(4, 2, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label: "lib",
+						Kind:  source.PackageItem,
+						TextEdit: &source.TextEdit{
+							Row:  4,
+							Col:  2,
+							Text: "lib",
+						},
+						AdditionalTextEdits: []source.TextEdit{
+							{
+								Row:  2,
+								Col:  1,
+								Text: "\nimport data.lib\n",
+							},
+						},
+					},
+				},
+			},
+			"Should list imported variables without import statement with other imported statement": {
+				files: map[string]source.File{
+					"main.rego": {
+						RawText: `package main
+
+import data.hoge
+
+violation[msg] {
+	l
+}`,
+					},
+					"lib.rego": {
+						RawText: `package lib`,
+					},
+				},
+				createLocation: createLocation(6, 2, "main.rego"),
+				expectItems: []source.CompletionItem{
+					{
+						Label: "lib",
+						Kind:  source.PackageItem,
+						TextEdit: &source.TextEdit{
+							Row:  6,
+							Col:  2,
+							Text: "lib",
+						},
+						AdditionalTextEdits: []source.TextEdit{
+							{
+								Row:  4,
+								Col:  1,
+								Text: "import data.lib\n",
+							},
+						},
+					},
+				},
+			},
 			"Should list variables when the prefix text is none": {
 				files: map[string]source.File{
 					"main.rego": {

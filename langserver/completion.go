@@ -62,12 +62,18 @@ func createCompletionItem(completionItem source.CompletionItem, insertTextFormat
 		}
 	}
 
+	additionalTextEdit := make([]lsp.TextEdit, len(completionItem.AdditionalTextEdits))
+	for i, a := range completionItem.AdditionalTextEdits {
+		additionalTextEdit[i] = createAdditionalTextEdit(a)
+	}
+
 	return lsp.CompletionItem{
-		Label:            completionItem.Label,
-		Kind:             kindToLspKind(completionItem.Kind),
-		Detail:           completionItem.Detail,
-		InsertTextFormat: lsp.ITFSnippet,
-		TextEdit:         createTextEdit(completionItem.TextEdit, completionItem.Kind),
+		Label:               completionItem.Label,
+		Kind:                kindToLspKind(completionItem.Kind),
+		Detail:              completionItem.Detail,
+		InsertTextFormat:    lsp.ITFSnippet,
+		TextEdit:            createTextEdit(completionItem.TextEdit, completionItem.Kind),
+		AdditionalTextEdits: additionalTextEdit,
 	}
 }
 
@@ -81,6 +87,22 @@ func kindToLspKind(kind source.CompletionKind) lsp.CompletionItemKind {
 		return lsp.CIKFunction
 	default:
 		return lsp.CIKText
+	}
+}
+
+func createAdditionalTextEdit(textEdit source.TextEdit) lsp.TextEdit {
+	return lsp.TextEdit{
+		Range: lsp.Range{
+			Start: lsp.Position{
+				Line:      textEdit.Row - 1,
+				Character: textEdit.Col - 1,
+			},
+			End: lsp.Position{
+				Line:      textEdit.Row - 1,
+				Character: textEdit.Col - 1,
+			},
+		},
+		NewText: textEdit.Text,
 	}
 }
 

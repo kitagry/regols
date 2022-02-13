@@ -9,22 +9,17 @@ import (
 )
 
 type CompletionItem struct {
-	Label        string
-	Kind         CompletionKind
-	Detail       string
-	TextEdit     *TextEdit
-	FunctionHead *FunctionHead
+	Label               string
+	Kind                CompletionKind
+	Detail              string
+	TextEdit            *TextEdit
+	AdditionalTextEdits []TextEdit
 }
 
 type TextEdit struct {
 	Row  int
 	Col  int
 	Text string
-}
-
-type FunctionHead struct {
-	Args  []string
-	Value *string
 }
 
 type CompletionKind int
@@ -44,6 +39,16 @@ func (p *Project) ListCompletionItems(location *ast.Location) ([]CompletionItem,
 		return nil, err
 	}
 
+	// update location to use target term location.
+	if term != nil && term.Loc() != nil {
+		switch t := term.Value.(type) {
+		case ast.Ref:
+			location = t[len(t)-1].Loc()
+		default:
+			location = term.Loc()
+		}
+	}
+
 	// list candidates
 	list := p.listCompletionCandidates(location, term)
 
@@ -57,16 +62,6 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 	policy := p.cache.Get(location.File)
 	if policy == nil {
 		return nil
-	}
-
-	// update location
-	if target != nil && target.Loc() != nil {
-		switch t := target.Value.(type) {
-		case ast.Ref:
-			location = t[len(t)-1].Loc()
-		default:
-			location = target.Loc()
-		}
 	}
 
 	if len(policy.Errs) > 0 {
@@ -143,6 +138,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 	}
 
 	if !isLibraryTerm(target) {
+		result = append(result, p.listLibraryVariables(location, module)...)
 		for _, i := range module.Imports {
 			result = append(result, CompletionItem{
 				Label: importToLabel(i),
@@ -161,6 +157,64 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 	result = append(result, p.listBuiltinFunctions(location, target)...)
 
 	return result
+}
+
+func (p *Project) listLibraryVariables(loc *ast.Location, module *ast.Module) []CompletionItem {
+	result := make([]CompletionItem, 0)
+	alreadyImported := make([]ast.Ref, len(module.Imports))
+	for i, imp := range module.Imports {
+		alreadyImported[i] = imp.Path.Value.(ast.Ref)
+	}
+
+	pkgs := p.cache.GetPackages()
+	for _, p := range pkgs {
+		if !isImported(p, module.Imports) && !p.Equal(module.Package.Path) {
+			label := string(p[len(p)-1].Value.(ast.String))
+
+			var importTextEdit TextEdit
+			if len(module.Imports) != 0 {
+				lastImportedRow := 0
+				for _, imp := range module.Imports {
+					if lastImportedRow < imp.Location.Row {
+						lastImportedRow = imp.Location.Row
+					}
+					importTextEdit = TextEdit{
+						Row:  lastImportedRow + 1,
+						Col:  1,
+						Text: fmt.Sprintf("import %s\n", p.String()),
+					}
+				}
+			} else {
+				importTextEdit = TextEdit{
+					Row:  module.Package.Location.Row + 1,
+					Col:  1,
+					Text: fmt.Sprintf("\nimport %s\n", p.String()),
+				}
+			}
+			result = append(result, CompletionItem{
+				Label: label,
+				Kind:  PackageItem,
+				TextEdit: &TextEdit{
+					Row:  loc.Row,
+					Col:  loc.Col,
+					Text: label,
+				},
+				AdditionalTextEdits: []TextEdit{
+					importTextEdit,
+				},
+			})
+		}
+	}
+	return result
+}
+
+func isImported(p ast.Ref, imports []*ast.Import) bool {
+	for _, imp := range imports {
+		if p.Equal(imp.Path.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Project) listCompletionItemsInRule(loc *ast.Location, rule *ast.Rule) []CompletionItem {
@@ -400,12 +454,12 @@ func filterCompletionItems(target *ast.Term, list []CompletionItem) []Completion
 	termPrefix := getTermPrefix(target)
 
 	result := make([]CompletionItem, 0)
-	exist := make(map[CompletionItem]struct{})
+	exist := make(map[string]struct{})
 	for _, item := range list {
 		if strings.HasPrefix(item.Label, termPrefix) {
-			if _, ok := exist[item]; !ok {
+			if _, ok := exist[item.Label]; !ok {
 				result = append(result, item)
-				exist[item] = struct{}{}
+				exist[item.Label] = struct{}{}
 			}
 		}
 	}
