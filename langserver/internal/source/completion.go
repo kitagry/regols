@@ -61,7 +61,12 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 
 	// update location
 	if target != nil && target.Loc() != nil {
-		location = target.Loc()
+		switch t := target.Value.(type) {
+		case ast.Ref:
+			location = t[len(t)-1].Loc()
+		default:
+			location = target.Loc()
+		}
 	}
 
 	if len(policy.Errs) > 0 {

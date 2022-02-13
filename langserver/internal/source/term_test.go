@@ -87,7 +87,7 @@ violation[msg] {
 					{
 						Location: &ast.Location{
 							Row: 6,
-							Col: 4,
+							Col: 6,
 							Offset: len("package main\n\nimport data.lib\n\nviolation[msg] {\n	lib"),
 							Text: []byte(""),
 							File: "main.rego",
