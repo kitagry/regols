@@ -69,7 +69,7 @@ func (p *Project) SearchTargetTerm(location *ast.Location) (term *ast.Term, err 
 					{
 						Location: &ast.Location{
 							Row:    location.Row,
-							Col:    location.Col,
+							Col:    term.Location.Col + len(term.Value.String()+"."),
 							Offset: location.Offset,
 							Text:   []byte{},
 							File:   location.File,

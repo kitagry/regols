@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/kitagry/regols/langserver/internal/lsp"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

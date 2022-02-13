@@ -12,8 +12,14 @@ type CompletionItem struct {
 	Label        string
 	Kind         CompletionKind
 	Detail       string
-	InsertText   string
+	TextEdit     *TextEdit
 	FunctionHead *FunctionHead
+}
+
+type TextEdit struct {
+	Row  int
+	Col  int
+	Text string
 }
 
 type FunctionHead struct {
@@ -53,8 +59,21 @@ func (p *Project) listCompletionCandidates(location *ast.Location, target *ast.T
 		return nil
 	}
 
+	// update location
+	if target != nil && target.Loc() != nil {
+		switch t := target.Value.(type) {
+		case ast.Ref:
+			location = t[len(t)-1].Loc()
+		default:
+			location = target.Loc()
+		}
+	}
+
 	if len(policy.Errs) > 0 {
 		if policy.Errs[0].Code == ast.ParseErr && (policy.Errs[0].Message == "empty module" || policy.Errs[0].Message == "package expected") {
+			// Client returns location which Col is something wrong, because the file cannot be parsed.
+			// So, I decide col should be `1`.
+			location.Col = 1
 			return p.listPackageCompletionItems(location)
 		}
 	}
@@ -95,19 +114,19 @@ func (p *Project) listPackageCompletionItems(location *ast.Location) []Completio
 	result := make([]CompletionItem, 0)
 	for _, d := range dirNames {
 		result = append(result, CompletionItem{
-			Label:      fmt.Sprintf("package %s", d),
-			Kind:       PackageItem,
-			InsertText: fmt.Sprintf("package %s", d),
+			Label:    fmt.Sprintf("package %s", d),
+			Kind:     PackageItem,
+			TextEdit: createTextEdit(location, fmt.Sprintf("package %s", d)),
 		})
 		for _, f := range fileNames {
 			result = append(result, CompletionItem{
-				Label:      fmt.Sprintf("package %s", f),
-				Kind:       PackageItem,
-				InsertText: fmt.Sprintf("package %s", f),
+				Label:    fmt.Sprintf("package %s", f),
+				Kind:     PackageItem,
+				TextEdit: createTextEdit(location, fmt.Sprintf("package %s", f)),
 			}, CompletionItem{
-				Label:      fmt.Sprintf("package %s.%s", d, f),
-				Kind:       PackageItem,
-				InsertText: fmt.Sprintf("package %s.%s", d, f),
+				Label:    fmt.Sprintf("package %s.%s", d, f),
+				Kind:     PackageItem,
+				TextEdit: createTextEdit(location, fmt.Sprintf("package %s.%s", d, f)),
 			})
 		}
 	}
@@ -139,7 +158,7 @@ func (p *Project) listCompletionItemsForTerms(location *ast.Location, target *as
 	}
 
 	result = append(result, p.listRules(location, target)...)
-	result = append(result, p.listBuiltinFunctions(target)...)
+	result = append(result, p.listBuiltinFunctions(location, target)...)
 
 	return result
 }
@@ -221,14 +240,14 @@ func (p *Project) listRules(location *ast.Location, term *ast.Term) []Completion
 		return nil
 	}
 
-	return p.listRulesFromModules(searchModules)
+	return p.listRulesFromModules(location, searchModules)
 }
 
-func (p *Project) listRulesFromModules(modules []*ast.Module) []CompletionItem {
+func (p *Project) listRulesFromModules(location *ast.Location, modules []*ast.Module) []CompletionItem {
 	exists := make(map[string]CompletionItem)
 	for _, m := range modules {
 		for _, r := range m.Rules {
-			item := createRuleCompletionItem(r)
+			item := createRuleCompletionItem(location, r)
 			alreadyItem, ok := exists[item.Label]
 			if !ok {
 				exists[item.Label] = item
@@ -246,7 +265,7 @@ func (p *Project) listRulesFromModules(modules []*ast.Module) []CompletionItem {
 	return result
 }
 
-func (p *Project) listBuiltinFunctions(term *ast.Term) []CompletionItem {
+func (p *Project) listBuiltinFunctions(location *ast.Location, term *ast.Term) []CompletionItem {
 	if term == nil {
 		return nil
 	}
@@ -259,10 +278,10 @@ func (p *Project) listBuiltinFunctions(term *ast.Term) []CompletionItem {
 				continue
 			}
 			result = append(result, CompletionItem{
-				Label:      b.Name,
-				Kind:       BuiltinFunctionItem,
-				Detail:     createDocForBuiltinFunction(b),
-				InsertText: fmt.Sprintf("%s%s", b.Name, b.Decl.FuncArgs().String()),
+				Label:    b.Name,
+				Kind:     BuiltinFunctionItem,
+				Detail:   createDocForBuiltinFunction(b),
+				TextEdit: createTextEdit(location, fmt.Sprintf("%s%s", b.Name, b.Decl.FuncArgs().String())),
 			})
 		}
 		return result
@@ -276,10 +295,10 @@ func (p *Project) listBuiltinFunctions(term *ast.Term) []CompletionItem {
 		if strings.HasPrefix(b.Name, fmt.Sprintf("%s.", val.Value.String())) {
 			name := strings.TrimLeft(b.Name, fmt.Sprintf("%s.", val.Value.String()))
 			result = append(result, CompletionItem{
-				Label:      name,
-				Kind:       BuiltinFunctionItem,
-				Detail:     createDocForBuiltinFunction(b),
-				InsertText: fmt.Sprintf("%s%s", name, b.Decl.FuncArgs().String()),
+				Label:    name,
+				Kind:     BuiltinFunctionItem,
+				Detail:   createDocForBuiltinFunction(b),
+				TextEdit: createTextEdit(location, fmt.Sprintf("%s%s", name, b.Decl.FuncArgs().String())),
 			})
 		}
 	}
@@ -305,9 +324,9 @@ func (p *Project) listImportCompletionItems(location *ast.Location) []Completion
 	for _, r := range refs {
 		if !inRef(r, alreadyExistPackages) {
 			result = append(result, CompletionItem{
-				Label:      fmt.Sprintf("import %s", r.String()),
-				Kind:       ImportItem,
-				InsertText: fmt.Sprintf("import %s", r.String()),
+				Label:    fmt.Sprintf("import %s", r.String()),
+				Kind:     ImportItem,
+				TextEdit: createTextEdit(location, fmt.Sprintf("import %s", r.String())),
 			})
 		}
 	}
@@ -325,7 +344,7 @@ func isLibraryTerm(target *ast.Term) bool {
 	return ok
 }
 
-func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
+func createRuleCompletionItem(location *ast.Location, rule *ast.Rule) CompletionItem {
 	head := rule.Head
 	var insertText strings.Builder
 	insertText.WriteString(head.Name.String())
@@ -351,10 +370,10 @@ func createRuleCompletionItem(rule *ast.Rule) CompletionItem {
 	}
 
 	return CompletionItem{
-		Label:      rule.Head.Name.String(),
-		Kind:       itemKind,
-		InsertText: insertText.String(),
-		Detail:     createDocForRule(rule),
+		Label:    rule.Head.Name.String(),
+		Kind:     itemKind,
+		TextEdit: createTextEdit(location, insertText.String()),
+		Detail:   createDocForRule(rule),
 	}
 }
 
@@ -413,4 +432,12 @@ func createDocForBuiltinFunction(builtin *ast.Builtin) string {
 	return fmt.Sprintf(`%s%s
 
 %s`, builtin.Name, builtin.Decl.FuncArgs().String(), BuiltinDetail)
+}
+
+func createTextEdit(location *ast.Location, text string) *TextEdit {
+	return &TextEdit{
+		Row:  location.Row,
+		Col:  location.Col,
+		Text: text,
+	}
 }

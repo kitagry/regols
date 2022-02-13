@@ -1,6 +1,7 @@
 package source_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,9 +30,13 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 			createLocation: createLocation(3, 1, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
-					Label:      "import data.lib",
-					Kind:       source.ImportItem,
-					InsertText: "import data.lib",
+					Label: "import data.lib",
+					Kind:  source.ImportItem,
+					TextEdit: &source.TextEdit{
+						Row:  3,
+						Col:  1,
+						Text: "import data.lib",
+					},
 				},
 			},
 		},
@@ -89,9 +94,13 @@ mem_multiple("P") = 1000000000000000000`,
 			createLocation: createLocation(4, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
-					Label:      "mem_multiple",
-					Kind:       source.FunctionItem,
-					InsertText: `mem_multiple("E")`,
+					Label: "mem_multiple",
+					Kind:  source.FunctionItem,
+					TextEdit: &source.TextEdit{
+						Row:  4,
+						Col:  2,
+						Text: `mem_multiple("E")`,
+					},
 					Detail: `mem_multiple("E") = 1000000000000000000000
 
 mem_multiple("P") = 1000000000000000000`,
@@ -129,13 +138,10 @@ violation[msg] {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(tt.expectItems, got); diff != "" {
+			if diff := cmp.Diff(tt.expectItems, got, cmp.Comparer(func(x, y source.CompletionItem) bool {
+				return reflect.DeepEqual(x, y)
+			})); diff != "" {
 				t.Errorf("ListCompletionItems result diff (-expect, +got)\n%s", diff)
-			}
-			for _, e := range tt.expectItems {
-				if !in(e, got) {
-					t.Errorf("ListCompletionItems should return item %v, got %v", e, got)
-				}
 			}
 		})
 	}
@@ -215,9 +221,13 @@ is_hello(msg) {
 				createLocation: createLocation(4, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
-						Label:      "is_hello",
-						Kind:       source.FunctionItem,
-						InsertText: "is_hello(msg)",
+						Label: "is_hello",
+						Kind:  source.FunctionItem,
+						TextEdit: &source.TextEdit{
+							Row:  4,
+							Col:  2,
+							Text: "is_hello(msg)",
+						},
 						Detail: `is_hello(msg) {
 	msg == "hello"
 }`,
@@ -244,9 +254,13 @@ hello(msg) {
 				createLocation: createLocation(4, 3, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
-						Label:      "hello",
-						Kind:       source.FunctionItem,
-						InsertText: "hello(msg)",
+						Label: "hello",
+						Kind:  source.FunctionItem,
+						TextEdit: &source.TextEdit{
+							Row:  4,
+							Col:  2,
+							Text: "hello(msg)",
+						},
 						Detail: `hello(msg) {
 	msg == "hello"
 }`,
@@ -275,9 +289,13 @@ is_hello(msg) {
 				createLocation: createLocation(6, 6, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
-						Label:      "is_hello",
-						Kind:       source.FunctionItem,
-						InsertText: "is_hello(msg)",
+						Label: "is_hello",
+						Kind:  source.FunctionItem,
+						TextEdit: &source.TextEdit{
+							Row:  6,
+							Col:  6,
+							Text: "is_hello(msg)",
+						},
 						Detail: `is_hello(msg) {
 	msg == "hello"
 }`,
@@ -297,10 +315,14 @@ violation[msg] {
 				createLocation: createLocation(4, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
-						Label:      "json.patch",
-						Kind:       source.BuiltinFunctionItem,
-						Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
-						InsertText: "json.patch(any, array[object<op: string, path: any>[any: any]])",
+						Label:  "json.patch",
+						Kind:   source.BuiltinFunctionItem,
+						Detail: "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
+						TextEdit: &source.TextEdit{
+							Row:  4,
+							Col:  2,
+							Text: "json.patch(any, array[object<op: string, path: any>[any: any]])",
+						},
 					},
 				},
 			},
@@ -317,10 +339,14 @@ violation[msg] {
 				createLocation: createLocation(4, 7, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
-						Label:      "patch",
-						Kind:       source.BuiltinFunctionItem,
-						Detail:     "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
-						InsertText: "patch(any, array[object<op: string, path: any>[any: any]])",
+						Label:  "patch",
+						Kind:   source.BuiltinFunctionItem,
+						Detail: "json.patch(any, array[object<op: string, path: any>[any: any]])\n\n" + source.BuiltinDetail,
+						TextEdit: &source.TextEdit{
+							Row:  4,
+							Col:  7,
+							Text: "patch(any, array[object<op: string, path: any>[any: any]])",
+						},
 					},
 				},
 			},
@@ -339,15 +365,32 @@ default is_test = true`,
 				createLocation: createLocation(4, 3, "src.rego"),
 				expectItems: []source.CompletionItem{
 					{
-						Label:      "is_test",
-						Kind:       source.VariableItem,
-						InsertText: "is_test",
-						Detail:     "default is_test = true",
+						Label: "is_test",
+						Kind:  source.VariableItem,
+						TextEdit: &source.TextEdit{
+							Row:  4,
+							Col:  2,
+							Text: "is_test",
+						},
+						Detail: "default is_test = true",
 					},
 				},
 			},
 		},
 		"List packages": {
+			"Should list package items when the file is empty and location from client is something wrong": {
+				files: map[string]source.File{
+					"test/core.rego": {
+						RawText: ``,
+					},
+				},
+				createLocation: createLocation(1, 0, "test/core.rego"),
+				expectItems: []source.CompletionItem{
+					{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
+					{Label: "package test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test"}},
+					{Label: "package test.core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test.core"}},
+				},
+			},
 			"Should list package items when the file is empty": {
 				files: map[string]source.File{
 					"test/core.rego": {
@@ -356,9 +399,9 @@ default is_test = true`,
 				},
 				createLocation: createLocation(1, 1, "test/core.rego"),
 				expectItems: []source.CompletionItem{
-					{Label: "package core", Kind: source.PackageItem, InsertText: "package core"},
-					{Label: "package test", Kind: source.PackageItem, InsertText: "package test"},
-					{Label: "package test.core", Kind: source.PackageItem, InsertText: "package test.core"},
+					{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
+					{Label: "package test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test"}},
+					{Label: "package test.core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test.core"}},
 				},
 			},
 			"Should list package items when the file has no package": {
@@ -369,8 +412,8 @@ default is_test = true`,
 				},
 				createLocation: createLocation(1, 1, "test/core.rego"),
 				expectItems: []source.CompletionItem{
-					{Label: "package core", Kind: source.PackageItem, InsertText: "package core"},
-					{Label: "package test", Kind: source.PackageItem, InsertText: "package test"},
+					{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
+					{Label: "package test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test"}},
 				},
 			},
 			`Should list package items which remove "_test"`: {
@@ -381,9 +424,9 @@ default is_test = true`,
 				},
 				createLocation: createLocation(1, 1, "aaa/bbb_test.rego"),
 				expectItems: []source.CompletionItem{
-					{Label: "package aaa", Kind: source.PackageItem, InsertText: "package aaa"},
-					{Label: "package bbb", Kind: source.PackageItem, InsertText: "package bbb"},
-					{Label: "package aaa.bbb", Kind: source.PackageItem, InsertText: "package aaa.bbb"},
+					{Label: "package aaa", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package aaa"}},
+					{Label: "package bbb", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package bbb"}},
+					{Label: "package aaa.bbb", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package aaa.bbb"}},
 				},
 			},
 		},
@@ -406,7 +449,7 @@ default is_test = true`,
 
 					for _, e := range tt.expectItems {
 						if !in(e, got) {
-							t.Errorf("ListCompletionItems should return item %v, got %v", e, got)
+							t.Errorf("ListCompletionItems result in (-expect, +got)\n%s", cmp.Diff(e, got))
 						}
 					}
 				})
@@ -417,7 +460,7 @@ default is_test = true`,
 
 func in(item source.CompletionItem, list []source.CompletionItem) bool {
 	for _, l := range list {
-		if item == l {
+		if diff := cmp.Diff(item, l); diff == "" {
 			return true
 		}
 	}
