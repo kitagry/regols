@@ -432,17 +432,17 @@ var completionItemKindName = map[CompletionItemKind]string{
 }
 
 type CompletionItem struct {
-	Label              string             `json:"label"`
-	Kind               CompletionItemKind `json:"kind,omitempty"`
-	Detail             string             `json:"detail,omitempty"`
-	Documentation      string             `json:"documentation,omitempty"`
-	SortText           string             `json:"sortText,omitempty"`
-	FilterText         string             `json:"filterText,omitempty"`
-	InsertText         string             `json:"insertText,omitempty"`
-	InsertTextFormat   InsertTextFormat   `json:"insertTextFormat,omitempty"`
-	TextEdit           *TextEdit          `json:"textEdit,omitempty"`
-	AdditionalTextEdit []TextEdit         `json:"additionalTextEdit,omitempty"`
-	Data               interface{}        `json:"data,omitempty"`
+	Label               string             `json:"label"`
+	Kind                CompletionItemKind `json:"kind,omitempty"`
+	Detail              string             `json:"detail,omitempty"`
+	Documentation       string             `json:"documentation,omitempty"`
+	SortText            string             `json:"sortText,omitempty"`
+	FilterText          string             `json:"filterText,omitempty"`
+	InsertText          string             `json:"insertText,omitempty"`
+	InsertTextFormat    InsertTextFormat   `json:"insertTextFormat,omitempty"`
+	TextEdit            *TextEdit          `json:"textEdit,omitempty"`
+	AdditionalTextEdits []TextEdit         `json:"additionalTextEdits,omitempty"`
+	Data                interface{}        `json:"data,omitempty"`
 }
 
 type CompletionList struct {

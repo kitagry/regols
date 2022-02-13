@@ -57,6 +57,17 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 						Text: "json.patch(any, array[object<op: string, path: any>[any: any]] => any)",
 					},
 				},
+				{
+					Label: "lib",
+					Kind:  source.PackageItem,
+					AdditionalTextEdits: []source.TextEdit{
+						{
+							Row:  3,
+							Col:  1,
+							Text: "import data.lib\n",
+						},
+					},
+				},
 			},
 			isSnippetSupport: true,
 			expectCompletionList: lsp.CompletionList{
@@ -80,6 +91,7 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 							},
 							NewText: "method(${1:a}, ${2:b})",
 						},
+						AdditionalTextEdits: []lsp.TextEdit{},
 					},
 					{
 						Label:            "method",
@@ -99,6 +111,7 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 							},
 							NewText: "method()",
 						},
+						AdditionalTextEdits: []lsp.TextEdit{},
 					},
 					{
 						Label:            "mes",
@@ -118,6 +131,7 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 							},
 							NewText: "mes[${1:a}]",
 						},
+						AdditionalTextEdits: []lsp.TextEdit{},
 					},
 					{
 						Label:            "json.patch",
@@ -136,6 +150,27 @@ func TestCompletionItemToLspCompletionList(t *testing.T) {
 								},
 							},
 							NewText: "json.patch(${1:any}, ${2:array[object<op: string, path: any>[any: any]] => any})",
+						},
+						AdditionalTextEdits: []lsp.TextEdit{},
+					},
+					{
+						Label:            "lib",
+						Kind:             lsp.CIKModule,
+						InsertTextFormat: lsp.ITFSnippet,
+						AdditionalTextEdits: []lsp.TextEdit{
+							{
+								Range: lsp.Range{
+									Start: lsp.Position{
+										Line:      2,
+										Character: 0,
+									},
+									End: lsp.Position{
+										Line:      2,
+										Character: 0,
+									},
+								},
+								NewText: "import data.lib\n",
+							},
 						},
 					},
 				},
