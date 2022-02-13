@@ -441,7 +441,7 @@ type CompletionItem struct {
 	InsertText         string             `json:"insertText,omitempty"`
 	InsertTextFormat   InsertTextFormat   `json:"insertTextFormat,omitempty"`
 	TextEdit           *TextEdit          `json:"textEdit,omitempty"`
-	AdditionalTextEdit []TextEdit         `json:"additionalTextEdit,omitempty`
+	AdditionalTextEdit []TextEdit         `json:"additionalTextEdit,omitempty"`
 	Data               interface{}        `json:"data,omitempty"`
 }
 
