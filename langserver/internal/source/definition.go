@@ -18,10 +18,10 @@ func (p *Project) LookupDefinition(location *ast.Location) ([]*ast.Location, err
 		return nil, nil
 	}
 
-	return p.findDefinition(targetTerm, location.File), nil
+	return p.findDefinition(targetTerm), nil
 }
 
-func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
+func (p *Project) findDefinition(term *ast.Term) []*ast.Location {
 	rule := p.findRuleForTerm(term.Loc())
 	if rule != nil {
 		target := p.findDefinitionInRule(term, rule)
@@ -47,7 +47,7 @@ func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
 	if isImportTerm(term) {
 		return p.findImportDefinitions(term)
 	}
-	return p.findDefinitionInModule(term, path)
+	return p.findDefinitionInModule(term)
 }
 
 func (p *Project) findRuleForTerm(loc *ast.Location) *ast.Rule {
@@ -162,7 +162,7 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 	}
 }
 
-func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
+func (p *Project) findDefinitionInModule(term *ast.Term) []*ast.Location {
 	searchPackageName := p.findPolicyRef(term)
 	searchPolicies := p.cache.FindPolicies(searchPackageName)
 
