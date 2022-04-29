@@ -106,6 +106,13 @@ func (p *Project) listPackageCompletionItems(location *ast.Location) []Completio
 		dirNames = append(dirNames, dir[ind+1:])
 	}
 
+	for i, fileName := range fileNames {
+		fileNames[i] = strings.ReplaceAll(fileName, "-", "_")
+	}
+	for i, dirName := range dirNames {
+		dirNames[i] = strings.ReplaceAll(dirName, "-", "_")
+	}
+
 	result := make([]CompletionItem, 0)
 	for _, d := range dirNames {
 		result = append(result, CompletionItem{

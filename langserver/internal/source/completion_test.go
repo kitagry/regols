@@ -448,15 +448,15 @@ default is_test = true`,
 		"List packages": {
 			"Should list package items when the file is empty and location from client is something wrong": {
 				files: map[string]source.File{
-					"test/core.rego": {
+					"test-test/core.rego": {
 						RawText: ``,
 					},
 				},
-				createLocation: createLocation(1, 0, "test/core.rego"),
+				createLocation: createLocation(1, 0, "test-test/core.rego"),
 				expectItems: []source.CompletionItem{
 					{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
-					{Label: "package test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test"}},
-					{Label: "package test.core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test.core"}},
+					{Label: "package test_test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test_test"}},
+					{Label: "package test_test.core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test_test.core"}},
 				},
 			},
 			"Should list package items when the file is empty": {
