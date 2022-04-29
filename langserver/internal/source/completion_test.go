@@ -10,6 +10,7 @@ import (
 
 type completionTestCase struct {
 	files          map[string]source.File
+	updateFile     map[string]source.File
 	createLocation createLocationFunc
 	expectItems    []source.CompletionItem
 }
@@ -28,6 +29,39 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 				},
 			},
 			createLocation: createLocation(3, 1, "src.rego"),
+			expectItems: []source.CompletionItem{
+				{
+					Label: "import data.lib",
+					Kind:  source.ImportItem,
+					TextEdit: &source.TextEdit{
+						Row:  3,
+						Col:  1,
+						Text: "import data.lib",
+					},
+				},
+			},
+		},
+		"Should list import library location is 1": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+
+`,
+				},
+				"lib.rego": {
+					RawText: `package lib`,
+				},
+			},
+			updateFile: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+im
+`,
+				},
+			},
+			createLocation: createLocation(3, 2, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "import data.lib",
@@ -182,6 +216,13 @@ violation[msg] {
 			project, err := source.NewProjectWithFiles(tt.files)
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			for path, file := range tt.updateFile {
+				err := project.UpdateFile(path, file.RawText, file.Version)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			location := tt.createLocation(tt.files)
@@ -506,6 +547,13 @@ default is_test = true`,
 					project, err := source.NewProjectWithFiles(tt.files)
 					if err != nil {
 						t.Fatal(err)
+					}
+
+					for path, file := range tt.updateFile {
+						err := project.UpdateFile(path, file.RawText, file.Version)
+						if err != nil {
+							t.Fatal(err)
+						}
 					}
 
 					location := tt.createLocation(tt.files)
