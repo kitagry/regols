@@ -3,6 +3,7 @@ package source
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -17,15 +18,30 @@ func (p *Project) LookupReferences(loc *ast.Location) ([]*ast.Location, error) {
 		return nil, nil
 	}
 
-	return p.findReferences(term), nil
+	result := p.findReferences(term)
+
+	// sort
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].File != result[j].File {
+			return result[i].File < result[j].File
+		}
+
+		return result[i].Row < result[j].Row
+	})
+
+	return result, nil
 }
 
 func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 	result := make([]*ast.Location, 0)
 
-	rule := p.findRuleForTerm(term.Loc())
-	if rule != nil {
-		result = append(result, p.findReferencesInRule(term, rule)...)
+	ruleDefinitions := p.findDefinitionInModule(term)
+	if len(ruleDefinitions) == 0 {
+		rule := p.findRuleForTerm(term.Loc())
+		if rule != nil {
+			result = append(result, p.findReferencesInRule(term, rule)...)
+		}
+		return result
 	}
 
 	result = append(result, p.findReferencesInModule(term)...)
@@ -81,7 +97,6 @@ func (p *Project) findReferencesInModule(term *ast.Term) []*ast.Location {
 			}
 		}
 	}
-
 	return result
 }
 
