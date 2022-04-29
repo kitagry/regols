@@ -380,13 +380,21 @@ func (p *Project) listImportCompletionItems(location *ast.Location) []Completion
 		}
 	}
 
+	locationForImport := &ast.Location{
+		Text:   location.Text,
+		File:   location.File,
+		Row:    location.Row,
+		Col:    1,
+		Offset: location.Offset,
+	}
+
 	result := make([]CompletionItem, 0, len(refs))
 	for _, r := range refs {
 		if !inRef(r, alreadyExistPackages) {
 			result = append(result, CompletionItem{
 				Label:    fmt.Sprintf("import %s", r.String()),
 				Kind:     ImportItem,
-				TextEdit: createTextEdit(location, fmt.Sprintf("import %s", r.String())),
+				TextEdit: createTextEdit(locationForImport, fmt.Sprintf("import %s", r.String())),
 			})
 		}
 	}
