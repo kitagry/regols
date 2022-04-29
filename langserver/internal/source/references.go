@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -37,6 +36,7 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 
 	ruleDefinitions := p.findDefinitionInModule(term)
 	if len(ruleDefinitions) == 0 {
+		// Target term is defined in the rule
 		rule := p.findRuleForTerm(term.Loc())
 		if rule != nil {
 			result = append(result, p.findReferencesInRule(term, rule)...)
@@ -44,7 +44,13 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 		return result
 	}
 
-	result = append(result, p.findReferencesInModule(term)...)
+	// list definition
+	result = append(result, p.findDefinitionInModule(term)...)
+
+	policy := p.cache.Get(term.Loc().File)
+	for _, rule := range policy.Module.Rules {
+		result = append(result, p.findReferencesInRule(term, rule)...)
+	}
 	return result
 }
 
@@ -72,31 +78,6 @@ func (p *Project) findReferencesInRule(term *ast.Term, rule *ast.Rule) []*ast.Lo
 		}
 	}
 
-	return result
-}
-
-func (p *Project) findReferencesInModule(term *ast.Term) []*ast.Location {
-	searchPackageName := p.findPolicyRef(term)
-	searchPolicies := p.cache.FindPolicies(searchPackageName)
-
-	if len(searchPolicies) == 0 {
-		return nil
-	}
-
-	word := term.String()
-	if strings.Contains(word, ".") {
-		word = word[strings.Index(word, ".")+1:]
-	}
-
-	result := make([]*ast.Location, 0)
-	for _, mod := range searchPolicies {
-		for _, rule := range mod.Rules {
-			if rule.Head.Name.String() == word {
-				r := rule
-				result = append(result, r.Loc())
-			}
-		}
-	}
 	return result
 }
 
