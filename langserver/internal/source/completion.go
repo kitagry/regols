@@ -91,11 +91,12 @@ func (p *Project) listPackageCompletionItems(location *ast.Location) []Completio
 	file := path.Base(location.File)
 	if ind := strings.LastIndex(file, ".rego"); ind > 0 {
 		fileName := file[:ind]
-		fileNames = append(fileNames, fileName)
 
 		if strings.HasSuffix(fileName, "_test") {
 			packageName := fileName[:len(fileName)-len("_test")]
 			fileNames = append(fileNames, packageName)
+		} else {
+			fileNames = append(fileNames, fileName)
 		}
 	}
 
@@ -104,6 +105,13 @@ func (p *Project) listPackageCompletionItems(location *ast.Location) []Completio
 	if dir != "." {
 		ind := strings.LastIndex(dir, "/")
 		dirNames = append(dirNames, dir[ind+1:])
+	}
+
+	for i, fileName := range fileNames {
+		fileNames[i] = strings.ReplaceAll(fileName, "-", "_")
+	}
+	for i, dirName := range dirNames {
+		dirNames[i] = strings.ReplaceAll(dirName, "-", "_")
 	}
 
 	result := make([]CompletionItem, 0)
