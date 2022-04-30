@@ -67,6 +67,39 @@ violation[msg] {
 				},
 			},
 		},
+		"Should list term which is declared in function": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+violation[msg] {
+	containers[container]
+	msg := sprintf("%s", [container])
+}
+
+containers[container] {
+	container = "c"
+}`,
+				},
+			},
+			createLocation: createLocation(4, 13, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row: 4,
+					Col: 13,
+					Offset: len("package src\n\nviolation[msg] {\n	containers["),
+					Text: []byte("container"),
+					File: "src.rego",
+				},
+				{
+					Row: 5,
+					Col: 24,
+					Offset: len("package src\n\nviolation[msg] {\n	containers[container]\n	msg := sprintf(\"%s\", ["),
+					Text: []byte("container"),
+					File: "src.rego",
+				},
+			},
+		},
 		"Should list term in array": {
 			files: map[string]source.File{
 				"src.rego": {
