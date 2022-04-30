@@ -133,6 +133,12 @@ func (p *Project) searchTargetTermInTerm(loc *ast.Location, term *ast.Term) (*as
 		if len(v) > 0 && in(loc, v[0].Loc()) {
 			return v[0], nil
 		}
+		// If lastItem is ast.Var, should return Value
+		lastItem := v[len(v)-1]
+		if _, ok := lastItem.Value.(ast.Var); ok && in(loc, lastItem.Loc()) {
+			return v[len(v)-1], nil
+		}
+
 		for i, t := range v {
 			if in(loc, t.Loc()) {
 				value := v[:i+1]

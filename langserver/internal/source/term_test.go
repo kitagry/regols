@@ -276,6 +276,33 @@ import data.lib`,
 			createLocation: createLocation(1, 0, "src.rego"),
 			expectTerm:     nil,
 		},
+		"Should return ast.Var when ast.Ref's final item is ast.Var": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+is_hello() {
+	messages[msg]
+	msg == "hello"
+}
+
+messages[msg] {
+	msg = input[_]
+}`,
+				},
+			},
+			createLocation: createLocation(4, 11, "src.rego"),
+			expectTerm: &ast.Term{
+				Value: ast.Var("msg"),
+				Location: &ast.Location{
+					Row:  4,
+					Col:  11,
+					File: "src.rego",
+					Offset: len("package src\n\nis_hello() {\n	messages["),
+					Text: []byte("msg"),
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

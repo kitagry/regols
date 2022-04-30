@@ -18,10 +18,10 @@ func (p *Project) LookupDefinition(location *ast.Location) ([]*ast.Location, err
 		return nil, nil
 	}
 
-	return p.findDefinition(targetTerm, location.File), nil
+	return p.findDefinition(targetTerm), nil
 }
 
-func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
+func (p *Project) findDefinition(term *ast.Term) []*ast.Location {
 	rule := p.findRuleForTerm(term.Loc())
 	if rule != nil {
 		target := p.findDefinitionInRule(term, rule)
@@ -29,25 +29,7 @@ func (p *Project) findDefinition(term *ast.Term, path string) []*ast.Location {
 			return []*ast.Location{target.Loc()}
 		}
 	}
-	if val, ok := term.Value.(ast.Var); ok {
-		module := p.GetModule(term.Loc().File)
-		for _, imp := range module.Imports {
-			if imp.Alias != "" && val.Equal(imp.Alias) {
-				return []*ast.Location{imp.Path.Location}
-			}
-
-			if imp.Alias == "" {
-				ref, ok := imp.Path.Value.(ast.Ref)
-				if ok && val.String() == string(ref[len(ref)-1].Value.(ast.String)) {
-					return []*ast.Location{ref[len(ref)-1].Loc()}
-				}
-			}
-		}
-	}
-	if isImportTerm(term) {
-		return p.findImportDefinitions(term)
-	}
-	return p.findDefinitionInModule(term, path)
+	return p.findDefinitionOutOfRule(term)
 }
 
 func (p *Project) findRuleForTerm(loc *ast.Location) *ast.Rule {
@@ -162,7 +144,7 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 	}
 }
 
-func (p *Project) findDefinitionInModule(term *ast.Term, path string) []*ast.Location {
+func (p *Project) findDefinitionInModule(term *ast.Term) []*ast.Location {
 	searchPackageName := p.findPolicyRef(term)
 	searchPolicies := p.cache.FindPolicies(searchPackageName)
 
@@ -240,8 +222,57 @@ func (p *Project) GetRawText(path string) (string, error) {
 	defer f.Close()
 
 	var buf bytes.Buffer
-	buf.ReadFrom(f)
+	_, err = buf.ReadFrom(f)
+	if err != nil {
+		return "", err
+	}
 	return buf.String(), nil
+}
+
+func (p *Project) findDefinitionOutOfRule(term *ast.Term) []*ast.Location {
+	locations := p.findDefinitionInImports(term)
+	if len(locations) != 0 {
+		return locations
+	}
+	if isImportTerm(term) {
+		return p.findImportDefinitions(term)
+	}
+	return p.findDefinitionInModule(term)
+}
+
+func (p *Project) findDefinitionInImports(term *ast.Term) []*ast.Location {
+	val, ok := term.Value.(ast.Var)
+	if !ok {
+		return nil
+	}
+
+	module := p.GetModule(term.Loc().File)
+	for _, imp := range module.Imports {
+		if imp.Alias != "" && val.Equal(imp.Alias) {
+			t, err := p.GetRawText(imp.Location.File)
+			if err != nil {
+				return nil
+			}
+			t = t[imp.Location.Offset:]
+			t = t[:strings.Index(t, "\n")]
+			loc := &ast.Location{
+				Row:    imp.Location.Row,
+				Col:    strings.LastIndex(t, " ") + 2,
+				Offset: imp.Location.Offset + strings.LastIndex(t, " ") + 1,
+				Text:   []byte(imp.Alias),
+				File:   imp.Location.File,
+			}
+			return []*ast.Location{loc}
+		}
+
+		if imp.Alias == "" {
+			ref, ok := imp.Path.Value.(ast.Ref)
+			if ok && val.String() == string(ref[len(ref)-1].Value.(ast.String)) {
+				return []*ast.Location{ref[len(ref)-1].Loc()}
+			}
+		}
+	}
+	return nil
 }
 
 // import data.xxx
