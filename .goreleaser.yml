@@ -1,0 +1,29 @@
+builds:
+  - goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - 386
+
+archives:
+  - replacements:
+      darwin: darwin
+      linux: linux
+      windows: windows
+      386: i386
+      amd64: amd64
+    format_overrides:
+      - goos: windows
+        format: zip
+
+brews:
+  - description: OPA Rego language server
+    tap:
+      owner: kitagry
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/kitagry/regols
+    install: bin.install "regols"
