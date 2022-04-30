@@ -6,12 +6,20 @@ OPA rego language server
 
 ## Install
 
+### MacOS
+
+```bash
+brew install kitagry/tap/regols
+```
+
+### Other
+
 Download from [Release page](https://github.com/kitagry/regols/releases).
 
 Or, you can build as following.
 
 ```bash
-$ go install github.com/kitagry/regols@latest
+go install github.com/kitagry/regols@latest
 ```
 
 ## Configuration
