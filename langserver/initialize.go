@@ -38,7 +38,7 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 			HoverProvider:              true,
 			ReferencesProvider:         true,
 			CompletionProvider: &lsp.CompletionOptions{
-				TriggerCharacters: []string{"*"},
+				TriggerCharacters: []string{"*", "."},
 				ResolveProvider:   true,
 			},
 		},
