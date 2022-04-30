@@ -44,14 +44,76 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 		return result
 	}
 
-	// list definition
+	// get definition
 	result = append(result, p.findDefinitionInModule(term)...)
 
+	// list references in rules
 	policy := p.cache.Get(term.Loc().File)
-	for _, rule := range policy.Module.Rules {
-		result = append(result, p.findReferencesInRule(term, rule)...)
+	for _, pkg := range p.cache.GetPackages() {
+		modules := p.cache.FindPolicies(pkg)
+		for _, module := range modules {
+			for _, rule := range module.Rules {
+				t := getTermForPackage(term, policy.Module, module)
+				result = append(result, p.findReferencesInRule(t, rule)...)
+			}
+		}
 	}
 	return result
+}
+
+func getTermForPackage(term *ast.Term, termModule, targetModule *ast.Module) *ast.Term {
+	pkg, ok := findPackageName(term, termModule.Imports)
+	if !ok {
+		return term
+	}
+
+	pkgRefs, ok := pkg.Value.(ast.Ref)
+	if !ok {
+		return term
+	}
+
+	if !pkgRefs.Equal(targetModule.Package.Path) {
+		return term
+	}
+
+	refs, ok := term.Value.(ast.Ref)
+	if !ok {
+		return term
+	}
+
+	refs = refs[1:].Copy()
+	refs[0].Value = ast.Var(refs[0].Value.(ast.String))
+	return &ast.Term{Value: refs, Location: refs[0].Location}
+}
+
+func findPackageName(term *ast.Term, imports []*ast.Import) (*ast.Term, bool) {
+	termRef, ok := term.Value.(ast.Ref)
+	if !ok {
+		return nil, false
+	}
+
+	if len(termRef) == 0 {
+		return nil, false
+	}
+
+	val, ok := termRef[0].Value.(ast.Var)
+	if !ok {
+		return nil, false
+	}
+
+	for _, imp := range imports {
+		if imp.Alias != "" && val.Equal(imp.Alias) {
+			return imp.Path, true
+		}
+
+		if imp.Alias == "" {
+			ref, ok := imp.Path.Value.(ast.Ref)
+			if ok && val.String() == string(ref[len(ref)-1].Value.(ast.String)) {
+				return imp.Path, true
+			}
+		}
+	}
+	return nil, false
 }
 
 func (p *Project) findReferencesInRule(term *ast.Term, rule *ast.Rule) []*ast.Location {
@@ -94,6 +156,9 @@ func (p *Project) findReferencesInTerm(target *ast.Term, term *ast.Term) []*ast.
 	case ast.Call:
 		return p.findReferencesInTerms(target, []*ast.Term(v))
 	case ast.Ref:
+		if target.Value.Compare(term.Value) == 0 {
+			return []*ast.Location{term.Location}
+		}
 		return p.findReferencesInTerms(target, []*ast.Term(v))
 	case ast.Var:
 		if target.Equal(term) {

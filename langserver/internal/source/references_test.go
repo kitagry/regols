@@ -183,6 +183,134 @@ is_hello(msg) {
 				},
 			},
 		},
+		"Should list function references in other function": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+violation[msg] {
+	is_hello(msg)
+}
+
+violation[msg] {
+	is_hello(msg)
+}
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(4, 2, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row: 4,
+					Col: 2,
+					Offset: len("package src\n\nviolation[msg] {\n	"),
+					Text: []byte("is_hello"),
+					File: "src.rego",
+				},
+				{
+					Row: 8,
+					Col: 2,
+					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\nviolation[msg] {\n	"),
+					Text: []byte("is_hello"),
+					File: "src.rego",
+				},
+				{
+					Row: 11,
+					Col: 1,
+					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\nviolation[msg] {\n	is_hello(msg)\n}\n\n"),
+					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+					File: "src.rego",
+				},
+			},
+		},
+		"Should list library definition": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib
+
+violation[msg] {
+	lib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(6, 6, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package lib\n\n"),
+					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+					File: "lib.rego",
+				},
+				{
+					Row: 6,
+					Col: 2,
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	"),
+					Text: []byte("lib.is_hello"),
+					File: "src.rego",
+				},
+			},
+		},
+		"Should list used in library": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib
+
+violation[msg] {
+	lib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}
+
+violation[msg] {
+	is_hello(msg)
+}`,
+				},
+			},
+			createLocation: createLocation(6, 6, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package lib\n\n"),
+					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+					File: "lib.rego",
+				},
+				{
+					Row: 8,
+					Col: 2,
+					Offset: len("package lib\n\nis_hello(msg) {\n	msg == \"hello\"\n}\n\nviolation[msg] {\n	"),
+					Text: []byte("is_hello"),
+					File: "lib.rego",
+				},
+				{
+					Row: 6,
+					Col: 2,
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	"),
+					Text: []byte("lib.is_hello"),
+					File: "src.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
