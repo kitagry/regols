@@ -165,6 +165,12 @@ func (p *Project) findReferencesInTerm(target *ast.Term, term *ast.Term) []*ast.
 				return []*ast.Location{v[len(targetRef)-1].Location}
 			}
 		}
+	case *ast.Array:
+		result := make([]*ast.Location, 0)
+		for i := 0; i < v.Len(); i++ {
+			result = append(result, p.findReferencesInTerm(target, v.Elem(i))...)
+		}
+		return result
 	case ast.Var:
 		if target.Equal(term) {
 			return []*ast.Location{term.Location}

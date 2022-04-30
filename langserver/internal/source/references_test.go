@@ -67,6 +67,35 @@ violation[msg] {
 				},
 			},
 		},
+		"Should list term in array": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+violation[msg] {
+	hello := "hello"
+	msg := sprintf("%s", [hello])
+}`,
+				},
+			},
+			createLocation: createLocation(4, 2, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row: 4,
+					Col: 2,
+					Offset: len("package src\n\nviolation[msg] {\n	"),
+					Text: []byte("hello"),
+					File: "src.rego",
+				},
+				{
+					Row: 5,
+					Col: 24,
+					Offset: len("package src\n\nviolation[msg] {\n	hello := \"hello\"\n	msg := sprintf(\"%s\", ["),
+					Text: []byte("hello"),
+					File: "src.rego",
+				},
+			},
+		},
 		"Should list rule's key": {
 			files: map[string]source.File{
 				"src.rego": {
