@@ -156,10 +156,15 @@ func (p *Project) findReferencesInTerm(target *ast.Term, term *ast.Term) []*ast.
 	case ast.Call:
 		return p.findReferencesInTerms(target, []*ast.Term(v))
 	case ast.Ref:
-		if target.Value.Compare(term.Value) == 0 {
-			return []*ast.Location{term.Location}
+		targetRef, ok := target.Value.(ast.Ref)
+		if !ok {
+			return p.findReferencesInTerms(target, []*ast.Term(v))
 		}
-		return p.findReferencesInTerms(target, []*ast.Term(v))
+		if len(targetRef) <= len(v) {
+			if targetRef.Compare(v[:len(targetRef)]) == 0 {
+				return []*ast.Location{v[len(targetRef)-1].Location}
+			}
+		}
 	case ast.Var:
 		if target.Equal(term) {
 			return []*ast.Location{term.Location}

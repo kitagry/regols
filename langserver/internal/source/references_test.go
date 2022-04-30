@@ -256,9 +256,9 @@ is_hello(msg) {
 				},
 				{
 					Row: 6,
-					Col: 2,
-					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	"),
-					Text: []byte("lib.is_hello"),
+					Col: 6,
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
+					Text: []byte("is_hello"),
 					File: "src.rego",
 				},
 			},
@@ -304,9 +304,104 @@ violation[msg] {
 				},
 				{
 					Row: 6,
+					Col: 6,
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
+					Text: []byte("is_hello"),
+					File: "src.rego",
+				},
+			},
+		},
+		"Should list function which have args": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+containers[container] {
+	container = input.containers[_].name
+}
+
+violation[msg] {
+	containers[container]
+	container == "a"
+}
+
+violation[msg] {
+	containers[container]
+	container == "b"
+}`,
+				},
+			},
+			createLocation: createLocation(8, 2, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package src\n\n"),
+					Text: []byte("containers[container] {\n	container = input.containers[_].name\n}"),
+					File: "src.rego",
+				},
+				{
+					Row: 8,
 					Col: 2,
-					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	"),
-					Text: []byte("lib.is_hello"),
+					Offset: len("package src\n\ncontainers[container] {\n	container = input.containers[_].name\n}\n\nviolation[msg] {\n	"),
+					Text: []byte("containers"),
+					File: "src.rego",
+				},
+				{
+					Row: 13,
+					Col: 2,
+					Offset: len("package src\n\ncontainers[container] {\n	container = input.containers[_].name\n}\n\nviolation[msg] {\n	containers[container]\n	container == \"a\"\n}\n\nviolation[msg] {\n	"),
+					Text: []byte("containers"),
+					File: "src.rego",
+				},
+			},
+		},
+		"Should list library function which have args": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib
+
+violation[msg] {
+	lib.containers[container]
+	container == "a"
+}
+
+violation[msg] {
+	lib.containers[container]
+	container == "b"
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+containers[container] {
+	container = input.containers[_].name
+}`,
+				},
+			},
+			createLocation: createLocation(6, 6, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package lib\n\n"),
+					Text: []byte("containers[container] {\n	container = input.containers[_].name\n}"),
+					File: "lib.rego",
+				},
+				{
+					Row: 6,
+					Col: 6,
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
+					Text: []byte("containers"),
+					File: "src.rego",
+				},
+				{
+					Row: 11,
+					Col: 6,
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib.containers[container]\n	container == \"a\"\n}\n\nviolation[msg] {\n	lib."),
+					Text: []byte("containers"),
 					File: "src.rego",
 				},
 			},
