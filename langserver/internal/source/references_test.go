@@ -435,6 +435,124 @@ containers[container] {
 				},
 			},
 		},
+		"Should list package name": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib
+
+violation[msg] {
+	lib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(6, 2, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    1,
+					Col:    9,
+					File:   "lib.rego",
+					Offset: len("package "),
+					Text:   []byte("lib"),
+				},
+				{
+					Row:    3,
+					Col:    13,
+					File:   "src.rego",
+					Offset: len("package src\n\nimport data."),
+					Text:   []byte("lib"),
+				},
+				{
+					Row:  6,
+					Col:  2,
+					File: "src.rego",
+					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	"),
+					Text: []byte("lib"),
+				},
+			},
+		},
+		"Should list package name which use alias": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib as alib
+
+violation[msg] {
+	alib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(6, 2, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    20,
+					File:   "src.rego",
+					Offset: len("package src\n\nimport data.lib as "),
+					Text:   []byte("alib"),
+				},
+				{
+					Row:  6,
+					Col:  2,
+					File: "src.rego",
+					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	"),
+					Text: []byte("alib"),
+				},
+			},
+		},
+		"Should list alias function": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib as alib
+
+violation[msg] {
+	alib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(6, 7, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					File:   "lib.rego",
+					Offset: len("package lib\n\n"),
+					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+				},
+				{
+					Row:  6,
+					Col:  7,
+					File: "src.rego",
+					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
+					Text: []byte("is_hello"),
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

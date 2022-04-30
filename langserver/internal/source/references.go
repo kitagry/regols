@@ -34,7 +34,7 @@ func (p *Project) LookupReferences(loc *ast.Location) ([]*ast.Location, error) {
 func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 	result := make([]*ast.Location, 0)
 
-	ruleDefinitions := p.findDefinitionInModule(term)
+	ruleDefinitions := p.findDefinitionOutOfRule(term)
 	if len(ruleDefinitions) == 0 {
 		// Target term is defined in the rule
 		rule := p.findRuleForTerm(term.Loc())
@@ -45,7 +45,17 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 	}
 
 	// get definition
-	result = append(result, p.findDefinitionInModule(term)...)
+	result = append(result, p.findDefinitionOutOfRule(term)...)
+
+	// list package name
+	for _, pkg := range p.cache.GetPackages() {
+		if ast.Var(pkg[len(pkg)-1].Value.(ast.String)).Compare(term.Value) == 0 {
+			modules := p.cache.FindPolicies(pkg)
+			for _, module := range modules {
+				result = append(result, module.Package.Path[len(module.Package.Path)-1].Location)
+			}
+		}
+	}
 
 	// list references in rules
 	policy := p.cache.Get(term.Loc().File)
