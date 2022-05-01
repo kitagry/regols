@@ -129,6 +129,27 @@ violation[msg] {
 				},
 			},
 		},
+		"Should list rule itself": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(3, 1, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package src\n\n"),
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
+				},
+			},
+		},
 		"Should list rule's key": {
 			files: map[string]source.File{
 				"src.rego": {
@@ -240,7 +261,7 @@ is_hello(msg) {
 					Row: 7,
 					Col: 1,
 					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\n"),
-					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+					Text: []byte("is_hello"),
 					File: "src.rego",
 				},
 			},
@@ -283,7 +304,7 @@ is_hello(msg) {
 					Row: 11,
 					Col: 1,
 					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\nviolation[msg] {\n	is_hello(msg)\n}\n\n"),
-					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+					Text: []byte("is_hello"),
 					File: "src.rego",
 				},
 			},
@@ -313,8 +334,8 @@ is_hello(msg) {
 					Row:    3,
 					Col:    1,
 					Offset: len("package lib\n\n"),
-					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
-					File: "lib.rego",
+					Text:   []byte("is_hello"),
+					File:   "lib.rego",
 				},
 				{
 					Row: 6,
@@ -354,8 +375,8 @@ violation[msg] {
 					Row:    3,
 					Col:    1,
 					Offset: len("package lib\n\n"),
-					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
-					File: "lib.rego",
+					Text:   []byte("is_hello"),
+					File:   "lib.rego",
 				},
 				{
 					Row: 8,
@@ -399,8 +420,8 @@ violation[msg] {
 					Row:    3,
 					Col:    1,
 					Offset: len("package src\n\n"),
-					Text: []byte("containers[container] {\n	container = input.containers[_].name\n}"),
-					File: "src.rego",
+					Text:   []byte("containers"),
+					File:   "src.rego",
 				},
 				{
 					Row: 8,
@@ -449,8 +470,8 @@ containers[container] {
 					Row:    3,
 					Col:    1,
 					Offset: len("package lib\n\n"),
-					Text: []byte("containers[container] {\n	container = input.containers[_].name\n}"),
-					File: "lib.rego",
+					Text:   []byte("containers"),
+					File:   "lib.rego",
 				},
 				{
 					Row: 6,
@@ -575,13 +596,103 @@ is_hello(msg) {
 					Col:    1,
 					File:   "lib.rego",
 					Offset: len("package lib\n\n"),
-					Text: []byte("is_hello(msg) {\n	msg == \"hello\"\n}"),
+					Text:   []byte("is_hello"),
 				},
 				{
 					Row:  6,
 					Col:  7,
 					File: "src.rego",
 					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
+					Text: []byte("is_hello"),
+				},
+			},
+		},
+		"Should list alias function for not source file": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib as alib
+
+violation[msg] {
+	alib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(3, 1, "lib.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					File:   "lib.rego",
+					Offset: len("package lib\n\n"),
+					Text:   []byte("is_hello"),
+				},
+				{
+					Row:  6,
+					Col:  7,
+					File: "src.rego",
+					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
+					Text: []byte("is_hello"),
+				},
+			},
+		},
+		"Should list different alias function": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.lib as alib
+
+violation[msg] {
+	alib.is_hello(msg)
+}`,
+				},
+				"src2.rego": {
+					RawText: `package src2
+
+import data.lib as blib
+
+violation[msg] {
+	blib.is_hello(msg)
+}`,
+				},
+				"lib.rego": {
+					RawText: `package lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(3, 1, "lib.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					File:   "lib.rego",
+					Offset: len("package lib\n\n"),
+					Text:   []byte("is_hello"),
+				},
+				{
+					Row:  6,
+					Col:  7,
+					File: "src.rego",
+					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
+					Text: []byte("is_hello"),
+				},
+				{
+					Row:  6,
+					Col:  7,
+					File: "src2.rego",
+					Offset: len("package src2\n\nimport data.lib as blib\n\nviolation[msg] {\n	blib."),
 					Text: []byte("is_hello"),
 				},
 			},

@@ -303,6 +303,28 @@ messages[msg] {
 				},
 			},
 		},
+		"Should list function itself": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(3, 1, "src.rego"),
+			expectTerm: &ast.Term{
+				Value: ast.Var("is_hello"),
+				Location: &ast.Location{
+					Row:    3,
+					Col:    1,
+					File:   "src.rego",
+					Offset: len("package src\n\n"),
+					Text:   []byte("is_hello"),
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

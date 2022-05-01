@@ -72,7 +72,8 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 }
 
 func getTermForPackage(term *ast.Term, termModule, targetModule *ast.Module) *ast.Term {
-	pkg, ok := findPackageName(term, termModule.Imports)
+	// Find defined package name.
+	pkg, ok := findPackageName(term, termModule)
 	if !ok {
 		return term
 	}
@@ -83,6 +84,38 @@ func getTermForPackage(term *ast.Term, termModule, targetModule *ast.Module) *as
 	}
 
 	if !pkgRefs.Equal(targetModule.Package.Path) {
+		for _, imp := range targetModule.Imports {
+			if !imp.Path.Equal(pkg) {
+				continue
+			}
+
+			impPath, ok := imp.Path.Value.(ast.Ref)
+			if !ok {
+				fmt.Fprintln(os.Stderr, "imp.Path is something wrong.")
+			}
+			var prefix ast.Var = ast.Var(impPath[len(impPath)-1].Value.(ast.String))
+			if imp.Alias != ast.Var("") {
+				prefix = imp.Alias
+			}
+
+			switch v := term.Value.(type) {
+			case ast.Ref:
+				v[0] = &ast.Term{
+					Value:    prefix,
+					Location: v[0].Location,
+				}
+				return &ast.Term{Value: v, Location: term.Location}
+			case ast.Var:
+				refs := ast.Ref{
+					&ast.Term{Value: prefix, Location: term.Location},
+					&ast.Term{Value: ast.String(v), Location: term.Location},
+				}
+				return &ast.Term{Value: refs, Location: term.Location}
+			}
+			if !ok {
+				return term
+			}
+		}
 		return term
 	}
 
@@ -96,10 +129,10 @@ func getTermForPackage(term *ast.Term, termModule, targetModule *ast.Module) *as
 	return &ast.Term{Value: refs, Location: refs[0].Location}
 }
 
-func findPackageName(term *ast.Term, imports []*ast.Import) (*ast.Term, bool) {
+func findPackageName(term *ast.Term, termModule *ast.Module) (*ast.Term, bool) {
 	termRef, ok := term.Value.(ast.Ref)
 	if !ok {
-		return nil, false
+		return &ast.Term{Value: termModule.Package.Path, Location: termModule.Package.Location}, true
 	}
 
 	if len(termRef) == 0 {
@@ -111,7 +144,7 @@ func findPackageName(term *ast.Term, imports []*ast.Import) (*ast.Term, bool) {
 		return nil, false
 	}
 
-	for _, imp := range imports {
+	for _, imp := range termModule.Imports {
 		if imp.Alias != "" && val.Equal(imp.Alias) {
 			return imp.Path, true
 		}
