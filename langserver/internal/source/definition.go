@@ -161,8 +161,14 @@ func (p *Project) findDefinitionInModule(term *ast.Term) []*ast.Location {
 	for _, mod := range searchPolicies {
 		for _, rule := range mod.Rules {
 			if rule.Head.Name.String() == word {
-				r := rule
-				result = append(result, r.Loc())
+				loc := &ast.Location{
+					Row:    rule.Location.Row,
+					Col:    rule.Location.Col,
+					File:   rule.Location.File,
+					Text:   []byte(rule.Head.Name.String()),
+					Offset: rule.Location.Offset,
+				}
+				result = append(result, loc)
 			}
 		}
 	}
