@@ -93,6 +93,20 @@ func (p *Project) searchTargetTermInImport(location *ast.Location, imp *ast.Impo
 func (p *Project) searchTargetTermInRule(location *ast.Location, rule *ast.Rule) (*ast.Term, error) {
 	for rule != nil {
 		if rule.Head != nil {
+			name := &ast.Term{
+				Value: rule.Head.Name,
+				Location: &ast.Location{
+					Row:    rule.Head.Location.Row,
+					Col:    rule.Head.Location.Col,
+					Text:   []byte(rule.Head.Name),
+					Offset: rule.Head.Location.Offset,
+					File:   rule.Head.Location.File,
+				},
+			}
+			if in(location, name.Location) {
+				return name, nil
+			}
+
 			if rule.Head.Value != nil && in(location, rule.Head.Value.Loc()) {
 				return p.searchTargetTermInTerm(location, rule.Head.Value)
 			}
