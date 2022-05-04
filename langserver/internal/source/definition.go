@@ -116,8 +116,6 @@ func (p *Project) findDefinitionInTerms(target *ast.Term, terms []*ast.Term) *as
 
 func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Term {
 	switch v := term.Value.(type) {
-	case ast.Call:
-		return p.findDefinitionInTerms(target, []*ast.Term(v))
 	case ast.Ref:
 		// import data.a
 		// a.b[c] -> a: ast.Var, b: ast.String, c: ast.Var

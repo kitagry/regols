@@ -697,6 +697,73 @@ is_hello(msg) {
 				},
 			},
 		},
+		"Should list imports": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+import data.a.lib
+
+f() {
+	lib.is_hello("hello")
+}`,
+				},
+				"src2.rego": {
+					RawText: `package src2
+
+import data.a.lib
+
+f() {
+	lib.is_hello("hello")
+}`,
+				},
+				"lib.rego": {
+					RawText: `package a.lib
+
+is_hello(msg) {
+	msg == "hello"
+}`,
+				},
+			},
+			createLocation: createLocation(6, 2, "src.rego"),
+			expectResult: []*ast.Location{
+				{
+					Row:    1,
+					Col:    11,
+					Offset: len("package a."),
+					Text:   []byte("lib"),
+					File:   "lib.rego",
+				},
+				{
+					Row:    3,
+					Col:    15,
+					Offset: len("package src\n\nimport data.a."),
+					Text:   []byte("lib"),
+					File:   "src.rego",
+				},
+				{
+					Row: 6,
+					Col: 2,
+					Offset: len("package src\n\nimport data.a.lib\n\nf() {\n	"),
+					Text: []byte("lib"),
+					File: "src.rego",
+				},
+				{
+					Row:    3,
+					Col:    15,
+					Offset: len("package src2\n\nimport data.a."),
+					Text:   []byte("lib"),
+					File:   "src2.rego",
+				},
+				{
+					Row: 6,
+					Col: 2,
+					Offset: len("package src2\n\nimport data.a.lib\n\nf() {\n	"),
+					Text: []byte("lib"),
+					File: "src2.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

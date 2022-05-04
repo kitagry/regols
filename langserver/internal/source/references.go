@@ -19,6 +19,18 @@ func (p *Project) LookupReferences(loc *ast.Location) ([]*ast.Location, error) {
 
 	result := p.findReferences(term)
 
+	// drop duplicates
+	exists := make(map[string]*ast.Location)
+	for _, r := range result {
+		key := fmt.Sprintf("%s-%d-%d", r.File, r.Row, r.Col)
+		exists[key] = r
+	}
+
+	result = make([]*ast.Location, 0, len(exists))
+	for _, l := range exists {
+		result = append(result, l)
+	}
+
 	// sort
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].File != result[j].File {
@@ -62,6 +74,21 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 	for _, pkg := range p.cache.GetPackages() {
 		modules := p.cache.FindPolicies(pkg)
 		for _, module := range modules {
+			for _, imp := range module.Imports {
+				path, ok := imp.Path.Value.(ast.Ref)
+				if !ok {
+					continue
+				}
+				last, ok := path[len(path)-1].Value.(ast.String)
+				if !ok {
+					continue
+				}
+				val := &ast.Term{
+					Value:    ast.Var(last),
+					Location: path[len(path)-1].Location,
+				}
+				result = append(result, p.findReferencesInTerm(term, val)...)
+			}
 			for _, rule := range module.Rules {
 				t := getTermForPackage(term, policy.Module, module)
 				result = append(result, p.findReferencesInRule(t, rule)...)
@@ -92,8 +119,14 @@ func getTermForPackage(term *ast.Term, termModule, targetModule *ast.Module) *as
 			impPath, ok := imp.Path.Value.(ast.Ref)
 			if !ok {
 				fmt.Fprintln(os.Stderr, "imp.Path is something wrong.")
+				continue
 			}
-			var prefix ast.Var = ast.Var(impPath[len(impPath)-1].Value.(ast.String))
+			str, ok := impPath[len(impPath)-1].Value.(ast.String)
+			if !ok {
+				fmt.Fprintln(os.Stderr, "imp.Path is something wrong.")
+				continue
+			}
+			var prefix ast.Var = ast.Var(str)
 			if imp.Alias != ast.Var("") {
 				prefix = imp.Alias
 			}
