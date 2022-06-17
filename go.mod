@@ -3,8 +3,8 @@ module github.com/kitagry/regols
 go 1.17
 
 require (
-	github.com/google/go-cmp v0.5.6
-	github.com/open-policy-agent/opa v0.37.0
+	github.com/google/go-cmp v0.5.7
+	github.com/open-policy-agent/opa v0.40.0
 	github.com/sourcegraph/jsonrpc2 v0.1.0
 )
 
