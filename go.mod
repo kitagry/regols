@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/google/go-cmp v0.5.7
-	github.com/open-policy-agent/opa v0.40.0
+	github.com/open-policy-agent/opa v0.42.0
 	github.com/sourcegraph/jsonrpc2 v0.1.0
 )
 
