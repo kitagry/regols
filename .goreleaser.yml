@@ -7,6 +7,9 @@ builds:
       - amd64
       - arm64
       - 386
+    ldflags:
+      - -X main.version={{ .Version }}
+      - -X main.revision={{ .ShortCommit }}
 
 archives:
   - replacements:
