@@ -35,11 +35,11 @@ if not configs.regols then
     default_config = {
       cmd = {'regols'};
       filetypes = { 'rego' };
-      root_dir = util.root_pattern(".git");
+      root_dir = nvim_lsp.util.root_pattern(".git");
     }
   }
 end
-lspconfig.regols.setup{}
+configs.regols.setup{}
 ```
 
 ## Specs
