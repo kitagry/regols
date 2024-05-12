@@ -8,7 +8,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-func (h *handler) handleTextDocumentReferences(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
+func (h *handler) handleTextDocumentReferences(ctx context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
 	if req.Params == nil {
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 	}
@@ -21,7 +21,7 @@ func (h *handler) handleTextDocumentReferences(ctx context.Context, conn *jsonrp
 	return h.lookupReferences(ctx, params.TextDocument.URI, params.Position)
 }
 
-func (h *handler) lookupReferences(ctx context.Context, uri lsp.DocumentURI, position lsp.Position) ([]lsp.Location, error) {
+func (h *handler) lookupReferences(_ context.Context, uri lsp.DocumentURI, position lsp.Position) ([]lsp.Location, error) {
 	loc := h.toOPALocation(position, uri)
 	locations, err := h.project.LookupReferences(loc)
 	if err != nil {

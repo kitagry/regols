@@ -30,7 +30,7 @@ func NewHandler() jsonrpc2.Handler {
 	return jsonrpc2.HandlerWithError(handler.handle)
 }
 
-func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
+func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
 	switch req.Method {
 	case "initialize":
 		return h.handleInitialize(ctx, conn, req)

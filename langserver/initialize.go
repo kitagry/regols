@@ -9,7 +9,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
+func (h *handler) handleInitialize(_ context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
 	if req.Params == nil {
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 	}
@@ -31,7 +31,7 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 	return lsp.InitializeResult{
 		Capabilities: lsp.ServerCapabilities{
 			TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
-				Kind: tdskToPTr(lsp.TDSKFull),
+				Kind: toPtr(lsp.TDSKFull),
 			},
 			DocumentFormattingProvider: true,
 			DefinitionProvider:         true,
@@ -45,6 +45,6 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 	}, nil
 }
 
-func tdskToPTr(s lsp.TextDocumentSyncKind) *lsp.TextDocumentSyncKind {
-	return &s
+func toPtr[T any](t T) *T {
+	return &t
 }
