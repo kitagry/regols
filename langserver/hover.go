@@ -8,7 +8,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-func (h *handler) handleTextDocumentHover(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
+func (h *handler) handleTextDocumentHover(ctx context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
 	if req.Params == nil {
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 	}
@@ -21,7 +21,7 @@ func (h *handler) handleTextDocumentHover(ctx context.Context, conn *jsonrpc2.Co
 	return h.documentIdent(ctx, params.TextDocument.URI, params.Position)
 }
 
-func (h *handler) documentIdent(ctx context.Context, uri lsp.DocumentURI, position lsp.Position) (lsp.Hover, error) {
+func (h *handler) documentIdent(_ context.Context, uri lsp.DocumentURI, position lsp.Position) (lsp.Hover, error) {
 	loc := h.toOPALocation(position, uri)
 	documentResults, err := h.project.TermDocument(loc)
 	if err != nil {

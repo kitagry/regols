@@ -10,12 +10,7 @@ import (
 func (h *handler) diagnostic() {
 	running := make(map[lsp.DocumentURI]context.CancelFunc)
 
-	for {
-		uri, ok := <-h.diagnosticRequest
-		if !ok {
-			break
-		}
-
+	for uri := range h.diagnosticRequest {
 		cancel, ok := running[uri]
 		if ok {
 			cancel()
@@ -25,7 +20,7 @@ func (h *handler) diagnostic() {
 		running[uri] = cancel
 
 		go func() {
-			diagnostics, err := h.diagnose(ctx, uri)
+			diagnostics, err := h.diagnose(uri)
 			if err != nil {
 				h.logger.Println(err)
 				return
@@ -41,7 +36,7 @@ func (h *handler) diagnostic() {
 	}
 }
 
-func (h *handler) diagnose(ctx context.Context, uri lsp.DocumentURI) (map[lsp.DocumentURI][]lsp.Diagnostic, error) {
+func (h *handler) diagnose(uri lsp.DocumentURI) (map[lsp.DocumentURI][]lsp.Diagnostic, error) {
 	result := make(map[lsp.DocumentURI][]lsp.Diagnostic)
 
 	pathToErrs := h.project.GetErrors(documentURIToURI(uri))
