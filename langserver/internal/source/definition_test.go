@@ -7,15 +7,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
+	"github.com/kitagry/regols/langserver/internal/source/helper"
 	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestLookupDefinition(t *testing.T) {
 	tests := map[string]struct {
-		files          map[string]source.File
-		createLocation createLocationFunc
-		expectResult   []*ast.Location
-		expectErr      error
+		files        map[string]source.File
+		expectResult []*ast.Location
+		expectErr    error
 	}{
 		"Should return variable definition in the rule": {
 			files: map[string]source.File{
@@ -24,18 +24,17 @@ func TestLookupDefinition(t *testing.T) {
 
 violation[msg] {
 	m := "hello"
-	msg = m
+	msg = m|
 }`,
 				},
 			},
-			createLocation: createLocation(5, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package main\n\nviolation[msg] {\n	"),
-					Text: []byte("m"),
-					File: "src.rego",
+					Text:   []byte("m"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -46,11 +45,10 @@ violation[msg] {
 
 violation[msg] {
 	m := "hello"
-	msg = m
+	msg| = m
 }`,
 				},
 			},
-			createLocation: createLocation(5, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -68,11 +66,10 @@ violation[msg] {
 
 test(msg) = test {
 	msg == "hello"
-	test = "hello"
+	test| = "hello"
 }`,
 				},
 			},
-			createLocation: createLocation(5, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -89,7 +86,7 @@ test(msg) = test {
 					RawText: `package main
 
 violation[msg] {
-	other_method("hello")
+	othe|r_method("hello")
 	msg := "hello"
 }`,
 				},
@@ -101,7 +98,6 @@ other_method(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 5, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -120,7 +116,7 @@ other_method(msg) {
 import data.lib
 
 violation[msg] {
-	lib.method("hello")
+	lib.m|ethod("hello")
 	msg := "hello"
 }`,
 				},
@@ -132,7 +128,6 @@ method(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 6, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -151,12 +146,11 @@ method(msg) {
 import data.lib
 
 violation[msg] {
-	lib.method("hello")
+	li|b.method("hello")
 	msg := "hello"
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -173,14 +167,13 @@ violation[msg] {
 					RawText: `package main
 
 violation[msg] {
-	m := "hello"
+	m| := "hello"
 	msg := m
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
-			expectResult:   []*ast.Location{},
-			expectErr:      nil,
+			expectResult: []*ast.Location{},
+			expectErr:    nil,
 		},
 		`Should not return definition when the item has "." but not library`: {
 			files: map[string]source.File{
@@ -189,7 +182,7 @@ violation[msg] {
 
 violation[msg] {
 	containers[container]
-	container.name
+	container.n|ame
 }
 
 containers[container] {
@@ -197,8 +190,7 @@ containers[container] {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 12, "src.rego"),
-			expectResult:   nil,
+			expectResult: nil,
 		},
 		"Should return definition when the rule has else clause": {
 			files: map[string]source.File{
@@ -207,7 +199,7 @@ containers[container] {
 
 authorize = "allow" {
 	msg := "allow"
-	trace(msg)
+	trace(m|sg)
 } else = "deny" {
 	msg := "deny"
 	trace(msg)
@@ -217,14 +209,13 @@ authorize = "allow" {
 }`,
 				},
 			},
-			createLocation: createLocation(5, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package main\n\nauthorize = \"allow\" {\n	"),
-					Text: []byte("msg"),
-					File: "src.rego",
+					Text:   []byte("msg"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -238,21 +229,20 @@ authorize = "allow" {
 	trace(msg)
 } else = "deny" {
 	msg := "deny"
-	trace(msg)
+	trace(m|sg)
 } else = "out" {
 	msg := "out"
 	trace(msg)
 }`,
 				},
 			},
-			createLocation: createLocation(8, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 7,
-					Col: 2,
+					Row:    7,
+					Col:    2,
 					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	"),
-					Text: []byte("msg"),
-					File: "src.rego",
+					Text:   []byte("msg"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -269,18 +259,17 @@ authorize = "allow" {
 	trace(msg)
 } else = "out" {
 	msg := "out"
-	trace(msg)
+	trace(m|sg)
 }`,
 				},
 			},
-			createLocation: createLocation(11, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 10,
-					Col: 2,
+					Row:    10,
+					Col:    2,
 					Offset: len("package main\n\nauthorize = \"allow\" {\n	msg := \"allow\"\n	trace(msg)\n} else = \"deny\" {\n	msg := \"deny\"\n	trace(msg)\n} else = \"out\" {\n	"),
-					Text: []byte("msg"),
-					File: "src.rego",
+					Text:   []byte("msg"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -289,13 +278,12 @@ authorize = "allow" {
 				"src.rego": {
 					RawText: `package main
 
-import data.lib`,
+import data.lib|`,
 				},
 				"lib.rego": {
 					RawText: `package lib`,
 				},
 			},
-			createLocation: createLocation(3, 13, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    1,
@@ -310,12 +298,16 @@ import data.lib`,
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			p, err := source.NewProjectWithFiles(tt.files)
+			files, location, err := helper.GetAstLocation(tt.files)
+			if err != nil {
+				t.Fatalf("failed to GetLspPosition: %v", err)
+			}
+
+			p, err := source.NewProjectWithFiles(files)
 			if err != nil {
 				t.Fatalf("failed to create project: %v", err)
 			}
 
-			location := tt.createLocation(tt.files)
 			got, err := p.LookupDefinition(location)
 			if !errors.Is(err, tt.expectErr) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)

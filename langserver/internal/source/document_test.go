@@ -5,13 +5,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
+	"github.com/kitagry/regols/langserver/internal/source/helper"
 )
 
 func TestProject_TermDocument(t *testing.T) {
 	tests := map[string]struct {
-		files          map[string]source.File
-		createLocation createLocationFunc
-		expectDocs     []source.Document
+		files      map[string]source.File
+		expectDocs []source.Document
 	}{
 		"Should document rule in same file method": {
 			files: map[string]source.File{
@@ -19,7 +19,7 @@ func TestProject_TermDocument(t *testing.T) {
 					RawText: `package src
 
 violation[msg] {
-	method(msg)
+	m|ethod(msg)
 }
 
 method(msg) {
@@ -27,7 +27,6 @@ method(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content: `method(msg) {
@@ -43,13 +42,12 @@ method(msg) {
 					RawText: `package src
 
 violation[msg] {
-	item
+	i|tem
 }
 
 default item = "hello"`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  `default item = "hello"`,
@@ -63,11 +61,10 @@ default item = "hello"`,
 					RawText: `package src
 
 violation[msg] {
-	sprintf("msg: %s", [msg])
+	s|printf("msg: %s", [msg])
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  "sprintf(string, array[any])",
@@ -87,11 +84,10 @@ See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-funct
 					RawText: `package src
 
 violation[msg] {
-	json.is_valid("{}")
+	json.i|s_valid("{}")
 }`,
 				},
 			},
-			createLocation: createLocation(4, 7, "src.rego"),
 			expectDocs: []source.Document{
 				{
 					Content:  "json.is_valid(string)",
@@ -109,12 +105,16 @@ See https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-funct
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			project, err := source.NewProjectWithFiles(tt.files)
+			files, location, err := helper.GetAstLocation(tt.files)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			location := tt.createLocation(tt.files)
+			project, err := source.NewProjectWithFiles(files)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			docs, err := project.TermDocument(location)
 			if err != nil {
 				t.Fatal(err)

@@ -6,13 +6,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
+	"github.com/kitagry/regols/langserver/internal/source/helper"
 )
 
 type completionTestCase struct {
-	files          map[string]source.File
-	updateFile     map[string]source.File
-	createLocation createLocationFunc
-	expectItems    []source.CompletionItem
+	files       map[string]source.File
+	updateFile  map[string]source.File
+	expectItems []source.CompletionItem
 }
 
 func TestProject_ListCompletionItemsStrict(t *testing.T) {
@@ -22,13 +22,12 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 				"src.rego": {
 					RawText: `package src
 
-`,
+|`,
 				},
 				"lib.rego": {
 					RawText: `package lib`,
 				},
 			},
-			createLocation: createLocation(3, 1, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "import data.lib",
@@ -46,7 +45,7 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 				"src.rego": {
 					RawText: `package src
 
-
+|
 `,
 				},
 				"lib.rego": {
@@ -57,11 +56,10 @@ func TestProject_ListCompletionItemsStrict(t *testing.T) {
 				"src.rego": {
 					RawText: `package src
 
-im
+im|
 `,
 				},
 			},
-			createLocation: createLocation(3, 2, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "import data.lib",
@@ -80,14 +78,13 @@ im
 					RawText: `package src
 
 import data.lib
-`,
+|`,
 				},
 				"lib.rego": {
 					RawText: `package lib`,
 				},
 			},
-			createLocation: createLocation(4, 1, "src.rego"),
-			expectItems:    []source.CompletionItem{},
+			expectItems: []source.CompletionItem{},
 		},
 		"Should list variable in else clause": {
 			files: map[string]source.File{
@@ -99,11 +96,10 @@ authorize = "allow" {
 	trace(msg)
 } else = "deny" {
 	ms := "deny"
-	ms
+	ms|
 }`,
 				},
 			},
-			createLocation: createLocation(8, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "ms",
@@ -117,7 +113,7 @@ authorize = "allow" {
 					RawText: `package src
 
 func() {
-	me
+	me|
 }
 
 mem_multiple("E") = 1000000000000000000000
@@ -125,7 +121,6 @@ mem_multiple("E") = 1000000000000000000000
 mem_multiple("P") = 1000000000000000000`,
 				},
 			},
-			createLocation: createLocation(4, 3, "src.rego"),
 			expectItems: []source.CompletionItem{
 				{
 					Label: "mem_multiple",
@@ -148,35 +143,20 @@ mem_multiple("P") = 1000000000000000000`,
 
 violation[msg] {
 	msg = "hello"
-	ms
+	ms|
 }`,
 				},
 			},
-			createLocation: createLocation(5, 3, "main.rego"),
 			expectItems: []source.CompletionItem{
 				{Label: "msg", Kind: source.VariableItem},
-			},
-		},
-		"Should list package items when the file is empty and location from client is something wrong": {
-			files: map[string]source.File{
-				"test-test/core.rego": {
-					RawText: ``,
-				},
-			},
-			createLocation: createLocation(1, 0, "test-test/core.rego"),
-			expectItems: []source.CompletionItem{
-				{Label: "package test_test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test_test"}},
-				{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
-				{Label: "package test_test.core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test_test.core"}},
 			},
 		},
 		"Should list package items when the file is empty": {
 			files: map[string]source.File{
 				"test/core.rego": {
-					RawText: ``,
+					RawText: `|`,
 				},
 			},
-			createLocation: createLocation(1, 1, "test/core.rego"),
 			expectItems: []source.CompletionItem{
 				{Label: "package test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test"}},
 				{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
@@ -186,10 +166,9 @@ violation[msg] {
 		"Should list package items when the file has no package": {
 			files: map[string]source.File{
 				"test/core.rego": {
-					RawText: `p`,
+					RawText: `p|`,
 				},
 			},
-			createLocation: createLocation(1, 1, "test/core.rego"),
 			expectItems: []source.CompletionItem{
 				{Label: "package test", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package test"}},
 				{Label: "package core", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package core"}},
@@ -199,10 +178,9 @@ violation[msg] {
 		`Should list package items which remove "_test"`: {
 			files: map[string]source.File{
 				"aaa/bbb_test.rego": {
-					RawText: `p`,
+					RawText: `p|`,
 				},
 			},
-			createLocation: createLocation(1, 1, "aaa/bbb_test.rego"),
 			expectItems: []source.CompletionItem{
 				{Label: "package aaa", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package aaa"}},
 				{Label: "package bbb", Kind: source.PackageItem, TextEdit: &source.TextEdit{Row: 1, Col: 1, Text: "package bbb"}},
@@ -213,19 +191,31 @@ violation[msg] {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			project, err := source.NewProjectWithFiles(tt.files)
+			files, location, err := helper.GetAstLocation(tt.files)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			for path, file := range tt.updateFile {
-				err := project.UpdateFile(path, file.RawText, file.Version)
+			project, err := source.NewProjectWithFiles(files)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(tt.updateFile) != 0 {
+				var updateFile map[string]source.File
+				updateFile, location, err = helper.GetAstLocation(tt.updateFile)
 				if err != nil {
 					t.Fatal(err)
 				}
+
+				for path, file := range updateFile {
+					err := project.UpdateFile(path, file.RawText, file.Version)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
 			}
 
-			location := tt.createLocation(tt.files)
 			got, err := project.ListCompletionItems(location)
 			if err != nil {
 				t.Fatal(err)
@@ -251,11 +241,10 @@ func TestProject_ListCompletionItemsExist(t *testing.T) {
 violation[msg] {
 	ms := hoge(fuga)
 	messages[message]
-	m
+	m|
 }`,
 					},
 				},
-				createLocation: createLocation(6, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{Label: "msg", Kind: source.VariableItem},
 					{Label: "ms", Kind: source.VariableItem},
@@ -270,11 +259,10 @@ violation[msg] {
 import data.lib
 
 violation[msg] {
-	l
+	l|
 }`,
 					},
 				},
-				createLocation: createLocation(6, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{Label: "lib", Kind: source.PackageItem},
 				},
@@ -285,14 +273,13 @@ violation[msg] {
 						RawText: `package main
 
 violation[msg] {
-	l
+	l|
 }`,
 					},
 					"lib.rego": {
 						RawText: `package lib`,
 					},
 				},
-				createLocation: createLocation(4, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label: "lib",
@@ -320,14 +307,13 @@ violation[msg] {
 import data.hoge
 
 violation[msg] {
-	l
+	l|
 }`,
 					},
 					"lib.rego": {
 						RawText: `package lib`,
 					},
 				},
-				createLocation: createLocation(6, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label: "lib",
@@ -354,11 +340,10 @@ violation[msg] {
 
 violation[msg] {
 	msg = "hello"
-
+	|
 }`,
 					},
 				},
-				createLocation: createLocation(5, 1, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{Label: "msg", Kind: source.VariableItem},
 				},
@@ -371,7 +356,7 @@ violation[msg] {
 						RawText: `package main
 
 violation [msg] {
-	i
+	i|
 }
 
 is_hello(msg) {
@@ -379,7 +364,6 @@ is_hello(msg) {
 }`,
 					},
 				},
-				createLocation: createLocation(4, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label: "is_hello",
@@ -401,7 +385,7 @@ is_hello(msg) {
 						RawText: `package main
 
 violation [msg] {
-	he
+	he|
 }`,
 					},
 					"other.rego": {
@@ -412,7 +396,6 @@ hello(msg) {
 }`,
 					},
 				},
-				createLocation: createLocation(4, 3, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label: "hello",
@@ -436,7 +419,7 @@ hello(msg) {
 import data.lib
 
 violation [msg] {
-	lib.i
+	lib.i|
 }`,
 					},
 					"lib.rego": {
@@ -447,7 +430,6 @@ is_hello(msg) {
 }`,
 					},
 				},
-				createLocation: createLocation(6, 6, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label: "is_hello",
@@ -469,11 +451,10 @@ is_hello(msg) {
 						RawText: `package main
 
 violation[msg] {
-	j
+	j|
 }`,
 					},
 				},
-				createLocation: createLocation(4, 2, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label:  "json.patch",
@@ -493,11 +474,10 @@ violation[msg] {
 						RawText: `package main
 
 violation[msg] {
-	json.p
+	json.p|
 }`,
 					},
 				},
-				createLocation: createLocation(4, 7, "main.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label:  "patch",
@@ -517,13 +497,12 @@ violation[msg] {
 						RawText: `package src
 
 violation[msg] {
-	is
+	is|
 }
 
 default is_test = true`,
 					},
 				},
-				createLocation: createLocation(4, 3, "src.rego"),
 				expectItems: []source.CompletionItem{
 					{
 						Label: "is_test",
@@ -544,19 +523,31 @@ default is_test = true`,
 		t.Run(n, func(t *testing.T) {
 			for n, tt := range cases {
 				t.Run(n, func(t *testing.T) {
-					project, err := source.NewProjectWithFiles(tt.files)
+					files, location, err := helper.GetAstLocation(tt.files)
 					if err != nil {
 						t.Fatal(err)
 					}
 
-					for path, file := range tt.updateFile {
-						err := project.UpdateFile(path, file.RawText, file.Version)
+					project, err := source.NewProjectWithFiles(files)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if len(tt.updateFile) != 0 {
+						var updateFile map[string]source.File
+						updateFile, location, err = helper.GetAstLocation(tt.updateFile)
 						if err != nil {
 							t.Fatal(err)
 						}
+
+						for path, file := range updateFile {
+							err := project.UpdateFile(path, file.RawText, file.Version)
+							if err != nil {
+								t.Fatal(err)
+							}
+						}
 					}
 
-					location := tt.createLocation(tt.files)
 					got, err := project.ListCompletionItems(location)
 					if err != nil {
 						t.Fatal(err)

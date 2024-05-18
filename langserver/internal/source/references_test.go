@@ -7,15 +7,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/kitagry/regols/langserver/internal/source"
+	"github.com/kitagry/regols/langserver/internal/source/helper"
 	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestLookupReferences(t *testing.T) {
 	tests := map[string]struct {
-		files          map[string]source.File
-		createLocation createLocationFunc
-		expectResult   []*ast.Location
-		expectErr      error
+		files        map[string]source.File
+		expectResult []*ast.Location
+		expectErr    error
 	}{
 		"Should list self": {
 			files: map[string]source.File{
@@ -23,18 +23,17 @@ func TestLookupReferences(t *testing.T) {
 					RawText: `package src
 
 violation[msg] {
-	hello := "hello"
+	h|ello := "hello"
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package src\n\nviolation[msg] {\n	"),
-					Text: []byte("hello"),
-					File: "src.rego",
+					Text:   []byte("hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -45,25 +44,24 @@ violation[msg] {
 
 violation[msg] {
 	hello := "hello"
-	is_hello(hello)
+	is_hello(h|ello)
 }`,
 				},
 			},
-			createLocation: createLocation(5, 10, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package src\n\nviolation[msg] {\n	"),
-					Text: []byte("hello"),
-					File: "src.rego",
+					Text:   []byte("hello"),
+					File:   "src.rego",
 				},
 				{
-					Row: 5,
-					Col: 11,
+					Row:    5,
+					Col:    11,
 					Offset: len("package src\n\nviolation[msg] {\n	hello := \"hello\"\n	is_hello("),
-					Text: []byte("hello"),
-					File: "src.rego",
+					Text:   []byte("hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -73,7 +71,7 @@ violation[msg] {
 					RawText: `package src
 
 violation[msg] {
-	containers[container]
+	containers[c|ontainer]
 	msg := sprintf("%s", [container])
 }
 
@@ -82,21 +80,20 @@ containers[container] {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 13, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 13,
+					Row:    4,
+					Col:    13,
 					Offset: len("package src\n\nviolation[msg] {\n	containers["),
-					Text: []byte("container"),
-					File: "src.rego",
+					Text:   []byte("container"),
+					File:   "src.rego",
 				},
 				{
-					Row: 5,
-					Col: 24,
+					Row:    5,
+					Col:    24,
 					Offset: len("package src\n\nviolation[msg] {\n	containers[container]\n	msg := sprintf(\"%s\", ["),
-					Text: []byte("container"),
-					File: "src.rego",
+					Text:   []byte("container"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -106,26 +103,25 @@ containers[container] {
 					RawText: `package src
 
 violation[msg] {
-	hello := "hello"
+	h|ello := "hello"
 	msg := sprintf("%s", [hello])
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package src\n\nviolation[msg] {\n	"),
-					Text: []byte("hello"),
-					File: "src.rego",
+					Text:   []byte("hello"),
+					File:   "src.rego",
 				},
 				{
-					Row: 5,
-					Col: 24,
+					Row:    5,
+					Col:    24,
 					Offset: len("package src\n\nviolation[msg] {\n	hello := \"hello\"\n	msg := sprintf(\"%s\", ["),
-					Text: []byte("hello"),
-					File: "src.rego",
+					Text:   []byte("hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -134,12 +130,11 @@ violation[msg] {
 				"src.rego": {
 					RawText: `package src
 
-is_hello(msg) {
+i|s_hello(msg) {
 	msg == "hello"
 }`,
 				},
 			},
-			createLocation: createLocation(3, 1, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -156,11 +151,10 @@ is_hello(msg) {
 					RawText: `package src
 
 violation[msg] {
-	trace(msg)
+	trace(m|sg)
 }`,
 				},
 			},
-			createLocation: createLocation(4, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -170,11 +164,11 @@ violation[msg] {
 					File:   "src.rego",
 				},
 				{
-					Row: 4,
-					Col: 8,
+					Row:    4,
+					Col:    8,
 					Offset: len("package src\n\nviolation[msg] {\n	trace("),
-					Text: []byte("msg"),
-					File: "src.rego",
+					Text:   []byte("msg"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -184,11 +178,10 @@ violation[msg] {
 					RawText: `package src
 
 violation(msg) {
-	trace(msg)
+	trace(m|sg)
 }`,
 				},
 			},
-			createLocation: createLocation(4, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -198,11 +191,11 @@ violation(msg) {
 					File:   "src.rego",
 				},
 				{
-					Row: 4,
-					Col: 8,
+					Row:    4,
+					Col:    8,
 					Offset: len("package src\n\nviolation(msg) {\n	trace("),
-					Text: []byte("msg"),
-					File: "src.rego",
+					Text:   []byte("msg"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -212,11 +205,10 @@ violation(msg) {
 					RawText: `package src
 
 violation = msg {
-	trace(msg)
+	trace(m|sg)
 }`,
 				},
 			},
-			createLocation: createLocation(4, 8, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -226,11 +218,11 @@ violation = msg {
 					File:   "src.rego",
 				},
 				{
-					Row: 4,
-					Col: 8,
+					Row:    4,
+					Col:    8,
 					Offset: len("package src\n\nviolation = msg {\n	trace("),
-					Text: []byte("msg"),
-					File: "src.rego",
+					Text:   []byte("msg"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -240,7 +232,7 @@ violation = msg {
 					RawText: `package src
 
 violation[msg] {
-	is_hello(msg)
+	i|s_hello(msg)
 }
 
 is_hello(msg) {
@@ -248,21 +240,20 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package src\n\nviolation[msg] {\n	"),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 				{
-					Row: 7,
-					Col: 1,
+					Row:    7,
+					Col:    1,
 					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\n"),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -272,7 +263,7 @@ is_hello(msg) {
 					RawText: `package src
 
 violation[msg] {
-	is_hello(msg)
+	i|s_hello(msg)
 }
 
 violation[msg] {
@@ -284,28 +275,27 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(4, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
-					Row: 4,
-					Col: 2,
+					Row:    4,
+					Col:    2,
 					Offset: len("package src\n\nviolation[msg] {\n	"),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 				{
-					Row: 8,
-					Col: 2,
+					Row:    8,
+					Col:    2,
 					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\nviolation[msg] {\n	"),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 				{
-					Row: 11,
-					Col: 1,
+					Row:    11,
+					Col:    1,
 					Offset: len("package src\n\nviolation[msg] {\n	is_hello(msg)\n}\n\nviolation[msg] {\n	is_hello(msg)\n}\n\n"),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -317,7 +307,7 @@ is_hello(msg) {
 import data.lib
 
 violation[msg] {
-	lib.is_hello(msg)
+	lib.i|s_hello(msg)
 }`,
 				},
 				"lib.rego": {
@@ -328,7 +318,6 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 6, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -338,11 +327,11 @@ is_hello(msg) {
 					File:   "lib.rego",
 				},
 				{
-					Row: 6,
-					Col: 6,
+					Row:    6,
+					Col:    6,
 					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -354,7 +343,7 @@ is_hello(msg) {
 import data.lib
 
 violation[msg] {
-	lib.is_hello(msg)
+	lib.i|s_hello(msg)
 }`,
 				},
 				"lib.rego": {
@@ -369,7 +358,6 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 6, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -379,18 +367,18 @@ violation[msg] {
 					File:   "lib.rego",
 				},
 				{
-					Row: 8,
-					Col: 2,
+					Row:    8,
+					Col:    2,
 					Offset: len("package lib\n\nis_hello(msg) {\n	msg == \"hello\"\n}\n\nviolation[msg] {\n	"),
-					Text: []byte("is_hello"),
-					File: "lib.rego",
+					Text:   []byte("is_hello"),
+					File:   "lib.rego",
 				},
 				{
-					Row: 6,
-					Col: 6,
+					Row:    6,
+					Col:    6,
 					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-					Text: []byte("is_hello"),
-					File: "src.rego",
+					Text:   []byte("is_hello"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -404,7 +392,7 @@ containers[container] {
 }
 
 violation[msg] {
-	containers[container]
+	c|ontainers[container]
 	container == "a"
 }
 
@@ -414,7 +402,6 @@ violation[msg] {
 }`,
 				},
 			},
-			createLocation: createLocation(8, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -424,18 +411,18 @@ violation[msg] {
 					File:   "src.rego",
 				},
 				{
-					Row: 8,
-					Col: 2,
+					Row:    8,
+					Col:    2,
 					Offset: len("package src\n\ncontainers[container] {\n	container = input.containers[_].name\n}\n\nviolation[msg] {\n	"),
-					Text: []byte("containers"),
-					File: "src.rego",
+					Text:   []byte("containers"),
+					File:   "src.rego",
 				},
 				{
-					Row: 13,
-					Col: 2,
+					Row:    13,
+					Col:    2,
 					Offset: len("package src\n\ncontainers[container] {\n	container = input.containers[_].name\n}\n\nviolation[msg] {\n	containers[container]\n	container == \"a\"\n}\n\nviolation[msg] {\n	"),
-					Text: []byte("containers"),
-					File: "src.rego",
+					Text:   []byte("containers"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -447,7 +434,7 @@ violation[msg] {
 import data.lib
 
 violation[msg] {
-	lib.containers[container]
+	lib.c|ontainers[container]
 	container == "a"
 }
 
@@ -464,7 +451,6 @@ containers[container] {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 6, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -474,18 +460,18 @@ containers[container] {
 					File:   "lib.rego",
 				},
 				{
-					Row: 6,
-					Col: 6,
+					Row:    6,
+					Col:    6,
 					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib."),
-					Text: []byte("containers"),
-					File: "src.rego",
+					Text:   []byte("containers"),
+					File:   "src.rego",
 				},
 				{
-					Row: 11,
-					Col: 6,
+					Row:    11,
+					Col:    6,
 					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	lib.containers[container]\n	container == \"a\"\n}\n\nviolation[msg] {\n	lib."),
-					Text: []byte("containers"),
-					File: "src.rego",
+					Text:   []byte("containers"),
+					File:   "src.rego",
 				},
 			},
 		},
@@ -497,7 +483,7 @@ containers[container] {
 import data.lib
 
 violation[msg] {
-	lib.is_hello(msg)
+	l|ib.is_hello(msg)
 }`,
 				},
 				"lib.rego": {
@@ -508,7 +494,6 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    1,
@@ -525,11 +510,11 @@ is_hello(msg) {
 					Text:   []byte("lib"),
 				},
 				{
-					Row:  6,
-					Col:  2,
-					File: "src.rego",
+					Row:    6,
+					Col:    2,
+					File:   "src.rego",
 					Offset: len("package src\n\nimport data.lib\n\nviolation[msg] {\n	"),
-					Text: []byte("lib"),
+					Text:   []byte("lib"),
 				},
 			},
 		},
@@ -541,7 +526,7 @@ is_hello(msg) {
 import data.lib as alib
 
 violation[msg] {
-	alib.is_hello(msg)
+	a|lib.is_hello(msg)
 }`,
 				},
 				"lib.rego": {
@@ -552,7 +537,6 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -562,11 +546,11 @@ is_hello(msg) {
 					Text:   []byte("alib"),
 				},
 				{
-					Row:  6,
-					Col:  2,
-					File: "src.rego",
+					Row:    6,
+					Col:    2,
+					File:   "src.rego",
 					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	"),
-					Text: []byte("alib"),
+					Text:   []byte("alib"),
 				},
 			},
 		},
@@ -578,7 +562,7 @@ is_hello(msg) {
 import data.lib as alib
 
 violation[msg] {
-	alib.is_hello(msg)
+	alib.i|s_hello(msg)
 }`,
 				},
 				"lib.rego": {
@@ -589,7 +573,6 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 7, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -599,11 +582,11 @@ is_hello(msg) {
 					Text:   []byte("is_hello"),
 				},
 				{
-					Row:  6,
-					Col:  7,
-					File: "src.rego",
+					Row:    6,
+					Col:    7,
+					File:   "src.rego",
 					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
-					Text: []byte("is_hello"),
+					Text:   []byte("is_hello"),
 				},
 			},
 		},
@@ -621,12 +604,11 @@ violation[msg] {
 				"lib.rego": {
 					RawText: `package lib
 
-is_hello(msg) {
+i|s_hello(msg) {
 	msg == "hello"
 }`,
 				},
 			},
-			createLocation: createLocation(3, 1, "lib.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -636,11 +618,11 @@ is_hello(msg) {
 					Text:   []byte("is_hello"),
 				},
 				{
-					Row:  6,
-					Col:  7,
-					File: "src.rego",
+					Row:    6,
+					Col:    7,
+					File:   "src.rego",
 					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
-					Text: []byte("is_hello"),
+					Text:   []byte("is_hello"),
 				},
 			},
 		},
@@ -667,12 +649,11 @@ violation[msg] {
 				"lib.rego": {
 					RawText: `package lib
 
-is_hello(msg) {
+i|s_hello(msg) {
 	msg == "hello"
 }`,
 				},
 			},
-			createLocation: createLocation(3, 1, "lib.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    3,
@@ -682,18 +663,18 @@ is_hello(msg) {
 					Text:   []byte("is_hello"),
 				},
 				{
-					Row:  6,
-					Col:  7,
-					File: "src.rego",
+					Row:    6,
+					Col:    7,
+					File:   "src.rego",
 					Offset: len("package src\n\nimport data.lib as alib\n\nviolation[msg] {\n	alib."),
-					Text: []byte("is_hello"),
+					Text:   []byte("is_hello"),
 				},
 				{
-					Row:  6,
-					Col:  7,
-					File: "src2.rego",
+					Row:    6,
+					Col:    7,
+					File:   "src2.rego",
 					Offset: len("package src2\n\nimport data.lib as blib\n\nviolation[msg] {\n	blib."),
-					Text: []byte("is_hello"),
+					Text:   []byte("is_hello"),
 				},
 			},
 		},
@@ -705,7 +686,7 @@ is_hello(msg) {
 import data.a.lib
 
 f() {
-	lib.is_hello("hello")
+	l|ib.is_hello("hello")
 }`,
 				},
 				"src2.rego": {
@@ -725,7 +706,6 @@ is_hello(msg) {
 }`,
 				},
 			},
-			createLocation: createLocation(6, 2, "src.rego"),
 			expectResult: []*ast.Location{
 				{
 					Row:    1,
@@ -742,11 +722,11 @@ is_hello(msg) {
 					File:   "src.rego",
 				},
 				{
-					Row: 6,
-					Col: 2,
+					Row:    6,
+					Col:    2,
 					Offset: len("package src\n\nimport data.a.lib\n\nf() {\n	"),
-					Text: []byte("lib"),
-					File: "src.rego",
+					Text:   []byte("lib"),
+					File:   "src.rego",
 				},
 				{
 					Row:    3,
@@ -756,11 +736,11 @@ is_hello(msg) {
 					File:   "src2.rego",
 				},
 				{
-					Row: 6,
-					Col: 2,
+					Row:    6,
+					Col:    2,
 					Offset: len("package src2\n\nimport data.a.lib\n\nf() {\n	"),
-					Text: []byte("lib"),
-					File: "src2.rego",
+					Text:   []byte("lib"),
+					File:   "src2.rego",
 				},
 			},
 		},
@@ -768,12 +748,16 @@ is_hello(msg) {
 
 	for n, tt := range tests {
 		t.Run(n, func(t *testing.T) {
-			p, err := source.NewProjectWithFiles(tt.files)
+			files, location, err := helper.GetAstLocation(tt.files)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			location := tt.createLocation(tt.files)
+			p, err := source.NewProjectWithFiles(files)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			got, err := p.LookupReferences(location)
 			if !errors.Is(err, tt.expectErr) {
 				t.Fatalf("LookupDefinition should return error expect %v, but got %v", tt.expectErr, err)
