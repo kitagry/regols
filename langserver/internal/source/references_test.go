@@ -744,6 +744,33 @@ is_hello(msg) {
 				},
 			},
 		},
+		"Should not list references when cursor is args": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+func(a|) {
+	trace(a)
+}`,
+				},
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    6,
+					Offset: len("package src\n\nfunc("),
+					Text:   []byte("a"),
+					File:   "src.rego",
+				},
+				{
+					Row:    4,
+					Col:    8,
+					Offset: len("package src\n\nfunc(a) {\n\ttrace("),
+					Text:   []byte("a"),
+					File:   "src.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {

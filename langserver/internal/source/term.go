@@ -107,8 +107,22 @@ func (p *Project) searchTargetTermInRule(location *ast.Location, rule *ast.Rule)
 				return name, nil
 			}
 
-			if rule.Head.Value != nil && rule.Head.Value.Loc() != nil && in(location, rule.Head.Value.Loc()) {
-				return p.searchTargetTermInTerm(location, rule.Head.Value)
+			if rule.Head.Key != nil && rule.Head.Key.Loc() != nil {
+				if in(location, rule.Head.Key.Loc()) {
+					return p.searchTargetTermInTerm(location, rule.Head.Key)
+				}
+			}
+
+			if rule.Head.Value != nil && rule.Head.Value.Loc() != nil {
+				if in(location, rule.Head.Value.Loc()) {
+					return p.searchTargetTermInTerm(location, rule.Head.Value)
+				}
+			}
+
+			for _, arg := range rule.Head.Args {
+				if in(location, arg.Loc()) {
+					return p.searchTargetTermInTerm(location, arg)
+				}
 			}
 		}
 		for _, b := range rule.Body {
