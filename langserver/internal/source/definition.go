@@ -59,7 +59,7 @@ func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term
 	// violation[msg]
 	//           ^ this is key
 	if rule.Head.Key != nil {
-		result := p.findDefinitionInTerm(term, rule.Head.Key)
+		result := p.findDefinitionInTerm(term, rule.Head.Key, false)
 		if result != nil {
 			return result
 		}
@@ -68,7 +68,7 @@ func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term
 	// func() = test
 	//          ^ this is value
 	if rule.Head.Value != nil {
-		result := p.findDefinitionInTerm(term, rule.Head.Value)
+		result := p.findDefinitionInTerm(term, rule.Head.Value, false)
 		if result != nil {
 			return result
 		}
@@ -84,29 +84,33 @@ func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term
 	for _, b := range rule.Body {
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			result := p.findDefinitionInTerm(term, t)
+			result := p.findDefinitionInTerm(term, t, true)
 			if result != nil {
 				return result
 			}
 		case []*ast.Term:
-			// equality -> [hoge, fuga] = split_hoge()
-			// assign -> hoge := fuga()
-			if ast.Equality.Ref().Equal(b.Operator()) || ast.Assign.Ref().Equal(b.Operator()) {
-				result := p.findDefinitionInTerm(term, t[1])
+			if isAssignExpr(b) {
+				result := p.findDefinitionInTerm(term, t[1], false)
 				if result != nil {
 					return result
 				}
 			}
 		default:
-			fmt.Fprintf(os.Stderr, "type: %T", b.Terms)
+			fmt.Fprintf(os.Stderr, "type: %T(%+v)", b.Terms, b.Terms)
 		}
 	}
 	return nil
 }
 
+// equality -> [hoge, fuga] = split_hoge()
+// assign -> hoge := fuga()
+func isAssignExpr(e *ast.Expr) bool {
+	return ast.Equality.Ref().Equal(e.Operator()) || ast.Assign.Ref().Equal(e.Operator())
+}
+
 func (p *Project) findDefinitionInTerms(target *ast.Term, terms []*ast.Term) *ast.Term {
 	for _, term := range terms {
-		t := p.findDefinitionInTerm(target, term)
+		t := p.findDefinitionInTerm(target, term, false)
 		if t != nil {
 			return t
 		}
@@ -114,7 +118,19 @@ func (p *Project) findDefinitionInTerms(target *ast.Term, terms []*ast.Term) *as
 	return nil
 }
 
-func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Term {
+func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term, isStatement bool) *ast.Term {
+	if isStatement {
+		switch term.Value.(type) {
+		case ast.Ref:
+			// This is for example
+			// func {
+			//   a[b]  # <- b is definition
+			// }
+		default:
+			return nil
+		}
+	}
+
 	switch v := term.Value.(type) {
 	case ast.Ref:
 		// import data.a
@@ -123,7 +139,7 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 		return p.findDefinitionInTerms(target, []*ast.Term(v)[1:])
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			t := p.findDefinitionInTerm(target, v.Elem(i))
+			t := p.findDefinitionInTerm(target, v.Elem(i), false)
 			if t == nil {
 				continue
 			}
@@ -131,7 +147,7 @@ func (p *Project) findDefinitionInTerm(target *ast.Term, term *ast.Term) *ast.Te
 		}
 		return nil
 	case ast.Var:
-		if target.Equal(term) && target.Loc().Offset > term.Loc().Offset {
+		if target.Equal(term) && target.Loc().Offset >= term.Loc().Offset {
 			return term
 		}
 		return nil
@@ -280,7 +296,8 @@ func (p *Project) findDefinitionInImports(term *ast.Term) []*ast.Location {
 }
 
 // import data.xxx
-//        ^ is import term
+//
+// import term is `data.xxx`
 func isImportTerm(term *ast.Term) bool {
 	val, ok := term.Value.(ast.Ref)
 	if !ok {

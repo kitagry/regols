@@ -44,17 +44,14 @@ func (p *Project) LookupReferences(loc *ast.Location) ([]*ast.Location, error) {
 }
 
 func (p *Project) findReferences(term *ast.Term) []*ast.Location {
-	result := make([]*ast.Location, 0)
-
-	ruleDefinitions := p.findDefinitionOutOfRule(term)
-	if len(ruleDefinitions) == 0 {
-		// Target term is defined in the rule
-		rule := p.findRuleForTerm(term.Loc())
-		if rule != nil {
-			result = append(result, p.findReferencesInRule(term, rule)...)
-		}
-		return result
+	// Target term is defined in the rule
+	rule := p.findRuleForTerm(term.Loc())
+	isDefinedInRule := p.findDefinitionInRule(term, rule) != nil
+	if isDefinedInRule {
+		return p.findReferencesInRule(term, rule)
 	}
+
+	result := make([]*ast.Location, 0)
 
 	// get definition
 	result = append(result, p.findDefinitionOutOfRule(term)...)

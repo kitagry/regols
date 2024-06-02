@@ -161,20 +161,6 @@ violation[msg] {
 				},
 			},
 		},
-		"Should not return definition when itself is definition": {
-			files: map[string]source.File{
-				"src.rego": {
-					RawText: `package main
-
-violation[msg] {
-	m| := "hello"
-	msg := m
-}`,
-				},
-			},
-			expectResult: []*ast.Location{},
-			expectErr:    nil,
-		},
 		`Should not return definition when the item has "." but not library`: {
 			files: map[string]source.File{
 				"src.rego": {
