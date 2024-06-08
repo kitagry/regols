@@ -44,11 +44,11 @@ func (p *Project) LookupReferences(loc *ast.Location) ([]*ast.Location, error) {
 }
 
 func (p *Project) findReferences(term *ast.Term) []*ast.Location {
-	// Target term is defined in the rule
-	rule := p.findRuleForTerm(term.Loc())
-	isDefinedInRule := p.findDefinitionInRule(term, rule) != nil
+	// Target term is defined in the definedRule
+	definedRule := p.findRuleForTerm(term.Loc())
+	isDefinedInRule := p.findDefinitionInRule(term, definedRule) != nil
 	if isDefinedInRule {
-		return p.findReferencesInRule(term, rule)
+		return p.findReferencesInRule(term, definedRule, isDefinedInRule)
 	}
 
 	result := make([]*ast.Location, 0)
@@ -88,7 +88,9 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 			}
 			for _, rule := range module.Rules {
 				t := getTermForPackage(term, policy.Module, module)
-				result = append(result, p.findReferencesInRule(t, rule)...)
+				// if definedRule = rule,
+				isDefinedInRule := definedRule.Equal(rule)
+				result = append(result, p.findReferencesInRule(t, rule, isDefinedInRule)...)
 			}
 		}
 	}
@@ -189,28 +191,66 @@ func findPackageName(term *ast.Term, termModule *ast.Module) (*ast.Term, bool) {
 	return nil, false
 }
 
-func (p *Project) findReferencesInRule(term *ast.Term, rule *ast.Rule) []*ast.Location {
+func (p *Project) findReferencesInRule(term *ast.Term, rule *ast.Rule, isDefinedInRule bool) []*ast.Location {
 	result := make([]*ast.Location, 0)
 
+	if rule.Head.Name.Equal(term.Value) {
+		if !isDefinedInRule {
+			return result
+		}
+		loc := &ast.Location{
+			Row:    rule.Head.Location.Row,
+			Col:    rule.Head.Location.Col,
+			Text:   []byte(rule.Head.Name),
+			File:   rule.Head.Location.File,
+			Offset: rule.Head.Location.Offset,
+		}
+		result = append(result, loc)
+	}
+
 	if rule.Head.Key != nil {
-		result = append(result, p.findReferencesInTerm(term, rule.Head.Key)...)
+		keys := p.findReferencesInTerm(term, rule.Head.Key)
+		if len(keys) > 0 && !isDefinedInRule {
+			return result
+		}
+		result = append(result, keys...)
 	}
 
 	if rule.Head.Value != nil {
-		result = append(result, p.findReferencesInTerm(term, rule.Head.Value)...)
+		values := p.findReferencesInTerm(term, rule.Head.Value)
+		if len(values) > 0 && !isDefinedInRule {
+			return result
+		}
+		result = append(result, values...)
 	}
 
-	result = append(result, p.findReferencesInTerms(term, rule.Head.Args)...)
+	args := p.findReferencesInTerms(term, rule.Head.Args)
+	if len(args) > 0 && !isDefinedInRule {
+		return result
+	}
+	result = append(result, args...)
 
 	for _, b := range rule.Body {
+		if isAssignExpr(b) && !isDefinedInRule {
+			switch t := b.Terms.(type) {
+			case []*ast.Term:
+				terms := p.findReferencesInTerm(term, t[1])
+				if len(terms) > 0 {
+					return result
+				}
+			}
+		}
+
+		terms := make([]*ast.Location, 0)
 		switch t := b.Terms.(type) {
 		case *ast.Term:
-			result = append(result, p.findReferencesInTerm(term, t)...)
+			terms = p.findReferencesInTerm(term, t)
 		case []*ast.Term:
-			result = append(result, p.findReferencesInTerms(term, t)...)
+			terms = p.findReferencesInTerms(term, t)
 		default:
 			fmt.Fprintf(os.Stderr, "type: %T", b.Terms)
 		}
+		result = append(result, terms...)
 	}
 
 	return result
