@@ -744,6 +744,108 @@ is_hello(msg) {
 				},
 			},
 		},
+		"Should list references when cursor is args": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+func(a|) {
+	trace(a)
+}`,
+				},
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    6,
+					Offset: len("package src\n\nfunc("),
+					Text:   []byte("a"),
+					File:   "src.rego",
+				},
+				{
+					Row:    4,
+					Col:    8,
+					Offset: len("package src\n\nfunc(a) {\n\ttrace("),
+					Text:   []byte("a"),
+					File:   "src.rego",
+				},
+			},
+		},
+		"Should not list references when name is same": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+same_name| := "hello"
+
+func(same_name) {
+	trace(same_name)
+}`,
+				},
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package src\n\n"),
+					Text:   []byte("same_name"),
+					File:   "src.rego",
+				},
+			},
+		},
+		"Should not list references when name is same2": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+same_name| := "hello"
+
+func {
+	same_name := "hoge"
+	trace(same_name)
+}`,
+				},
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package src\n\n"),
+					Text:   []byte("same_name"),
+					File:   "src.rego",
+				},
+			},
+		},
+		"Should list references when used in assigned": {
+			files: map[string]source.File{
+				"src.rego": {
+					RawText: `package src
+
+same_name| := "hello"
+
+func {
+	other := same_name
+	trace(other)
+}`,
+				},
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package src\n\n"),
+					Text:   []byte("same_name"),
+					File:   "src.rego",
+				},
+				{
+					Row:    6,
+					Col:    11,
+					Offset: len("package src\n\nsame_name := \"hello\"\n\nfunc {\n	other := "),
+					Text:   []byte("same_name"),
+					File:   "src.rego",
+				},
+			},
+		},
 	}
 
 	for n, tt := range tests {
