@@ -56,6 +56,10 @@ func (p *Project) findElseRule(loc *ast.Location, rule *ast.Rule) *ast.Rule {
 }
 
 func (p *Project) findDefinitionInRule(term *ast.Term, rule *ast.Rule) *ast.Term {
+	if rule == nil {
+		return nil
+	}
+
 	// violation[msg]
 	//           ^ this is key
 	if rule.Head.Key != nil {
