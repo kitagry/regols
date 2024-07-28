@@ -23,5 +23,6 @@ jobs:
       with:
         distribution: goreleaser
         version: "~> v2"
+        args: release
       env:
         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
