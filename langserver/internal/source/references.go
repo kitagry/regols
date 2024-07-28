@@ -54,7 +54,15 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 	result := make([]*ast.Location, 0)
 
 	// get definition
-	result = append(result, p.findDefinitionOutOfRule(term)...)
+	definitions := p.findDefinitionOutOfRule(term)
+	result = append(result, definitions...)
+
+	var definedPackage *ast.Package
+	if len(definitions) > 0 {
+		definition := definitions[0]
+		policy := p.cache.Get(definition.File)
+		definedPackage = policy.Module.Package
+	}
 
 	// list package name
 	for _, pkg := range p.cache.GetPackages() {
@@ -71,21 +79,14 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 	for _, pkg := range p.cache.GetPackages() {
 		modules := p.cache.FindPolicies(pkg)
 		for _, module := range modules {
-			for _, imp := range module.Imports {
-				path, ok := imp.Path.Value.(ast.Ref)
-				if !ok {
-					continue
-				}
-				last, ok := path[len(path)-1].Value.(ast.String)
-				if !ok {
-					continue
-				}
-				val := &ast.Term{
-					Value:    ast.Var(last),
-					Location: path[len(path)-1].Location,
-				}
-				result = append(result, p.findReferencesInTerm(term, val)...)
+			isDefinedPackage := definedPackage.Equal(module.Package)
+			isSameWithCalledPackage := policy.Module.Package.Equal(module.Package)
+			_, ok := findImportedPkg(definedPackage, module)
+			if !ok && !isSameWithCalledPackage && !isDefinedPackage {
+				continue
 			}
+
+			result = append(result, p.findImportsReferences(term, module.Imports)...)
 			for _, rule := range module.Rules {
 				t := getTermForPackage(term, policy.Module, module)
 				// if definedRule = rule,
@@ -93,6 +94,39 @@ func (p *Project) findReferences(term *ast.Term) []*ast.Location {
 				result = append(result, p.findReferencesInRule(t, rule, isDefinedInRule)...)
 			}
 		}
+	}
+	return result
+}
+
+func findImportedPkg(pkg *ast.Package, module *ast.Module) (*ast.Import, bool) {
+	for _, imp := range module.Imports {
+		path, ok := imp.Path.Value.(ast.Ref)
+		if !ok {
+			continue
+		}
+		if pkg.Path.Equal(path) {
+			return imp, true
+		}
+	}
+	return nil, false
+}
+
+func (p *Project) findImportsReferences(term *ast.Term, imports []*ast.Import) []*ast.Location {
+	result := make([]*ast.Location, 0)
+	for _, imp := range imports {
+		path, ok := imp.Path.Value.(ast.Ref)
+		if !ok {
+			continue
+		}
+		last, ok := path[len(path)-1].Value.(ast.String)
+		if !ok {
+			continue
+		}
+		val := &ast.Term{
+			Value:    ast.Var(last),
+			Location: path[len(path)-1].Location,
+		}
+		result = append(result, p.findReferencesInTerm(term, val)...)
 	}
 	return result
 }
