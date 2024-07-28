@@ -678,7 +678,7 @@ i|s_hello(msg) {
 				},
 			},
 		},
-		"Should list imports": {
+		"Should list imports only in a file": {
 			files: map[string]source.File{
 				"src.rego": {
 					RawText: `package src
@@ -687,15 +687,6 @@ import data.a.lib
 
 f() {
 	l|ib.is_hello("hello")
-}`,
-				},
-				"src2.rego": {
-					RawText: `package src2
-
-import data.a.lib
-
-f() {
-	lib.is_hello("hello")
 }`,
 				},
 				"lib.rego": {
@@ -727,20 +718,6 @@ is_hello(msg) {
 					Offset: len("package src\n\nimport data.a.lib\n\nf() {\n	"),
 					Text:   []byte("lib"),
 					File:   "src.rego",
-				},
-				{
-					Row:    3,
-					Col:    15,
-					Offset: len("package src2\n\nimport data.a."),
-					Text:   []byte("lib"),
-					File:   "src2.rego",
-				},
-				{
-					Row:    6,
-					Col:    2,
-					Offset: len("package src2\n\nimport data.a.lib\n\nf() {\n	"),
-					Text:   []byte("lib"),
-					File:   "src2.rego",
 				},
 			},
 		},
@@ -843,6 +820,48 @@ func {
 					Offset: len("package src\n\nsame_name := \"hello\"\n\nfunc {\n	other := "),
 					Text:   []byte("same_name"),
 					File:   "src.rego",
+				},
+			},
+		},
+		"Should not list same name function in other package": {
+			files: map[string]source.File{
+				"hoge.rego": {
+					RawText: `package hoge
+
+h|ello() {
+	trace("hello")
+}
+
+hoge() {
+	hello()
+}`,
+				},
+				"fuga.rego": {
+					RawText: `package fuga
+
+hello() {
+	trace("hello")
+}
+
+fuga() {
+	hello()
+}`,
+				},
+			},
+			expectResult: []*ast.Location{
+				{
+					Row:    3,
+					Col:    1,
+					Offset: len("package hoge\n\n"),
+					Text:   []byte("hello"),
+					File:   "hoge.rego",
+				},
+				{
+					Row:    8,
+					Col:    2,
+					Offset: len("package hoge\n\nhello() {\n	trace(\"hello\")\n}\n\nfuga() {\n	"),
+					Text:   []byte("hello"),
+					File:   "hoge.rego",
 				},
 			},
 		},
