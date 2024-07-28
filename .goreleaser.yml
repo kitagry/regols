@@ -1,3 +1,5 @@
+version: 2
+
 builds:
   - goos:
       - windows
@@ -6,14 +8,13 @@ builds:
     goarch:
       - amd64
       - arm64
-      - 386
+      - '386'
     ldflags:
       - -X main.version={{ .Version }}
       - -X main.revision={{ .ShortCommit }}
 
 archives:
-  - rlcp: true
-    format: tar.gz
+  - format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -30,9 +31,9 @@ archives:
 
 brews:
   - description: OPA Rego language server
-    tap:
+    repository:
       owner: kitagry
       name: homebrew-tap
-    folder: Formula
+    directory: Formula
     homepage: https://github.com/kitagry/regols
     install: bin.install "regols"
